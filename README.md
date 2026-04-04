@@ -1,7 +1,7 @@
 # Miyoo-Bifrost
 
 [![OnionOS](https://img.shields.io/badge/OnionOS-v4.3.1-4CAF50?style=for-the-badge&logo=github&logoColor=white)](https://github.com/OnionUI/Onion)
-[![TelmiOS](https://img.shields.io/badge/TelmiOS-v1.10.1-FF8C00?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Turbo-Telmios/TelmiOS)
+[![TelmiOS](https://img.shields.io/badge/TelmiOS-v1.10.1-FF8C00?style=for-the-badge&logo=github&logoColor=white)](https://github.com/DantSu/Telmi-story-teller)
 
 **Dual Boot pour Miyoo Mini / Mini Plus — OnionOS + TelmiOS**
 
