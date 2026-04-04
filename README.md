@@ -57,33 +57,155 @@ Un bootloader léger qui affiche un menu graphique au démarrage pour choisir en
 
 ---
 
-## Installation rapide
+## Installation — Guide complet pas à pas
 
-### 1. Générer les images du menu
-```bat
-pip install Pillow
-python generate_bootmenu.py
+> ⏱️ Durée estimée : 15 à 30 minutes selon la taille de ta carte SD.
+
+---
+
+### Étape 0 — Ce dont tu as besoin
+
+Avant de commencer, télécharge et prépare ces éléments sur ton PC :
+
+| Élément | Où le trouver |
+|---|---|
+| **Ce projet** (Miyoo-Bifrost) | Bouton vert **Code → Download ZIP** sur cette page |
+| **OnionOS** (ex: `Onion-v4.3.1-1.zip`) | [Releases OnionOS](https://github.com/OnionUI/Onion/releases) |
+| **TelmiOS** (ex: `TelmiOS_v1.10.1.zip`) | [Releases TelmiOS](https://github.com/DantSu/Telmi-story-teller/releases) |
+| **Python 3** | [python.org/downloads](https://www.python.org/downloads/) — cocher *"Add to PATH"* à l'installation |
+
+Une fois téléchargés, extrais les trois archives. Tu dois avoir ces dossiers côte à côte :
+
+```
+📁 Miyoo-Bifrost\        ← ce projet
+📁 Telmios\              ← contenu de l'archive TelmiOS
+📁 onion\                ← contenu de l'archive OnionOS
 ```
 
-### 2. Installer automatiquement
-Lancer `INSTALLER_SD.ps1` (clic droit → *Exécuter avec PowerShell*).
+> ⚠️ Les noms de dossiers doivent être exactement `Telmios` et `onion` (respecter la casse).
 
-Le script copie automatiquement le bootloader, les binaires et les OS sur la SD.
+---
 
-### 3. Structure SD finale
-```
-SD:\
-├── .tmp_update\          ← bootloader Bifrost
-│   ├── runtime.sh
-│   ├── bin\              ← copié depuis OnionOS
-│   ├── lib\              ← copié depuis TelmiOS
-│   ├── config\
-│   │   └── dualboot.cfg  ← configuration
-│   └── res\              ← images .raw générées
-├── onion\                ← OnionOS complet
-├── telmios\              ← TelmiOS complet
-└── autorun.inf
-```
+### Étape 1 — Installer Python et Pillow
+
+1. Ouvre le **menu Démarrer**, cherche `cmd`, clique **Invite de commandes**
+2. Tape cette commande et appuie sur **Entrée** :
+   ```
+   pip install Pillow
+   ```
+3. Attends que l'installation se termine (tu verras `Successfully installed Pillow`)
+
+> Si tu vois une erreur `pip n'est pas reconnu`, réinstalle Python en cochant bien **"Add Python to PATH"**.
+
+---
+
+### Étape 2 — Formater la carte SD
+
+> ⚠️ **SAUVEGARDE tes ROMs et sauvegardes avant !** Le formatage efface tout.
+
+1. Insère ta carte SD dans ton PC
+2. Ouvre l'**Explorateur de fichiers** (touche `Windows + E`)
+3. Fais un **clic droit** sur la carte SD → **Formater...**
+4. Choisis le système de fichiers :
+   - Carte SD **≤ 32 Go** → sélectionne **FAT32**, taille d'unité **32 Ko**
+   - Carte SD **> 32 Go** → sélectionne **exFAT**, taille d'unité **32 Ko**
+5. Clique **Démarrer** puis confirme
+6. Note la lettre de ta carte SD (ex: `E:`)
+
+---
+
+### Étape 3 — Générer les images du menu de démarrage
+
+Les images du menu (Onion / TelmiOS) doivent être générées sur ton PC.
+
+1. Ouvre l'**Explorateur de fichiers**
+2. Va dans le dossier `Miyoo-Bifrost`
+3. Dans la barre d'adresse en haut, clique et tape `cmd` puis **Entrée**
+   → Une invite de commandes s'ouvre directement dans ce dossier
+4. Tape :
+   ```
+   python generate_bootmenu.py
+   ```
+5. Tu dois voir s'afficher :
+   ```
+   [OK] Carte SD trouvee -> RAW direct sur E:\.tmp_update\res
+   -> bootmenu_onion_FR ... OK
+   -> bootmenu_telmios_FR ... OK
+   ...
+   TERMINE !
+   ```
+
+> Si la carte SD n'est pas encore insérée, le script crée les fichiers dans le dossier `Miyoo-Bifrost`. Il faudra les copier manuellement dans `SD:\.tmp_update\res\` plus tard.
+
+---
+
+### Étape 4 — Lancer l'installateur automatique
+
+1. Dans le dossier `Miyoo-Bifrost`, fais un **clic droit** sur `INSTALLER_SD.ps1`
+2. Clique **Exécuter avec PowerShell**
+
+   > Si Windows bloque le script : clic droit → **Propriétés** → coche **Débloquer** → OK, puis réessaie.
+
+3. L'installateur va :
+   - ✅ Copier le bootloader Bifrost sur la SD
+   - ✅ Copier les binaires d'OnionOS
+   - ✅ Copier les librairies de TelmiOS
+   - ✅ Installer TelmiOS dans `SD:\telmios\`
+   - ✅ Installer OnionOS dans `SD:\onion\`
+   - ✅ Vérifier que tout est en place
+
+4. À la fin, tu dois voir **"INSTALLATION REUSSIE !"** en vert
+   - Si des fichiers sont marqués `[MANQUANT]`, relis les étapes précédentes
+
+---
+
+### Étape 5 — Éjecter la carte SD proprement
+
+> ⚠️ Ne retire pas la carte SD brutalement — des données pourraient être corrompues.
+
+1. Dans l'Explorateur de fichiers, fais un **clic droit** sur la carte SD
+2. Clique **Éjecter**
+3. Attends le message *"Vous pouvez retirer le périphérique"*
+4. Retire la carte SD
+
+---
+
+### Étape 6 — Insérer la carte SD et démarrer le Miyoo
+
+1. Insère la carte SD dans ton **Miyoo Mini / Mini Plus**
+2. Allume la console en maintenant le bouton Power
+3. Le **menu Bifrost** apparaît après quelques secondes :
+   - À **gauche** : OnionOS (retrogaming)
+   - À **droite** : TelmiOS (histoires)
+
+---
+
+### Utilisation du menu
+
+| Bouton | Action |
+|---|---|
+| **◄ Gauche** | Passer sur OnionOS |
+| **► Droite** | Passer sur TelmiOS |
+| **A** | Confirmer et lancer l'OS |
+| **B** | Lancer directement le dernier OS utilisé |
+| *(60 secondes sans action)* | Lance automatiquement le dernier OS |
+
+Le choix est **mémorisé automatiquement** — au prochain démarrage, la console proposera en priorité le dernier OS utilisé.
+
+---
+
+### En cas de problème
+
+| Symptôme | Solution |
+|---|---|
+| Écran noir au démarrage | Vérifie que `SD:\.tmp_update\runtime.sh` existe |
+| Menu ne s'affiche pas | Relance `generate_bootmenu.py` avec la SD insérée |
+| OnionOS ne démarre pas | Vérifie que `SD:\onion\` contient bien les fichiers OnionOS |
+| TelmiOS ne démarre pas | Vérifie que `SD:\telmios\` contient bien les fichiers TelmiOS |
+| La console redémarre en boucle | Les librairies dans `SD:\.tmp_update\lib\` doivent venir de TelmiOS |
+| Installateur bloqué par Windows | Clic droit sur `.ps1` → Propriétés → Débloquer |
+
+> Les logs de démarrage sont disponibles sur la SD dans `.tmp_update\logs\dualboot.log`
 
 ---
 
