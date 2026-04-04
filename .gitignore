@@ -1,0 +1,19 @@
+# OS distributions - non inclus (trop volumineux, telecharger separement)
+onion/
+Telmios/
+finale/
+
+# Fichiers RAW generes par generate_bootmenu.py (binaires lourds)
+*.raw
+
+# PNG generes a la racine (utiliser preview/ pour les captures)
+/bootmenu_*.png
+
+# Logs
+*.log
+logs/
+
+# Windows
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/

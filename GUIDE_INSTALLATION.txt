@@ -1,0 +1,192 @@
+===========================================================
+  GUIDE D'INSTALLATION — DUAL BOOT MIYOO MINI PLUS
+  OnionOS v4.3.1 + TelmOS v1.9.1
+===========================================================
+
+Ce guide explique comment installer le dual boot sur ta
+carte SD pour le Miyoo Mini Plus.
+Au démarrage, un menu graphique te permettra de choisir
+entre OnionOS (jeux) et TelmOS (histoires).
+
+-----------------------------------------------------------
+PRÉREQUIS
+-----------------------------------------------------------
+- Une carte SD (recommandé 32GB à 256GB)
+  → FAT32 pour ≤ 32GB
+  → exFAT pour > 32GB
+- Un PC Windows avec les dossiers :
+  · "Telmios/"  (dossier TelmOS v1.9.1)
+  · "onion/"    (dossier OnionOS v4.3.1)
+  · "DualBoot/" (le bootloader créé ici)
+- Python 3 installé (pour générer les images)
+  Téléchargement : https://www.python.org/downloads/
+
+-----------------------------------------------------------
+ÉTAPE 1 — Installer Python et Pillow
+-----------------------------------------------------------
+1. Ouvre un terminal (touches Win + R, tape "cmd")
+2. Installe Pillow :
+     pip install Pillow
+3. Génère les images de boot :
+     cd "C:\Users\Parents\Desktop\Test miyoo"
+     python generate_bootmenu.py
+4. Tu obtiens 2 fichiers :
+     bootmenu_onion.png
+     bootmenu_telmios.png
+
+-----------------------------------------------------------
+ÉTAPE 2 — Formater la carte SD
+-----------------------------------------------------------
+Sur Windows :
+1. Insère la carte SD
+2. Ouvre l'Explorateur de fichiers
+3. Clic droit sur la SD → "Formater"
+   · Si ≤ 32GB : FAT32, taille cluster 32 Ko
+   · Si > 32GB : exFAT, taille cluster 32 Ko
+4. Clique "Démarrer"
+
+⚠ ATTENTION : Sauvegarde tes ROMs et sauvegardes avant !
+
+-----------------------------------------------------------
+ÉTAPE 3 — Copier le bootloader
+-----------------------------------------------------------
+Copie le dossier "DualBoot/.tmp_update/" vers la SD :
+
+  Source  : DualBoot\.tmp_update\
+  Destination : SD:\.tmp_update\
+
+Copie aussi :
+  Source  : DualBoot\autorun.inf
+  Destination : SD:\autorun.inf
+
+-----------------------------------------------------------
+ÉTAPE 4 — Copier les binaires (bin/) du bootloader
+-----------------------------------------------------------
+Le bootloader a besoin des programmes (binaires) d'OnionOS.
+
+  Source  : onion\.tmp_update\bin\
+  Destination : SD:\.tmp_update\bin\
+
+(Copier TOUT le contenu du dossier bin/)
+
+-----------------------------------------------------------
+ÉTAPE 5 — Copier les librairies (lib/) du bootloader
+-----------------------------------------------------------
+Le bootloader a besoin des librairies de TelmOS
+(elles sont plus complètes : SDL1.2 + SDL2).
+
+  Source  : Telmios\.tmp_update\lib\
+  Destination : SD:\.tmp_update\lib\
+
+(Copier TOUT le contenu du dossier lib/)
+
+-----------------------------------------------------------
+ÉTAPE 6 — Copier les images de boot menu
+-----------------------------------------------------------
+  Source  : bootmenu_onion.png    (généré à l'étape 1)
+  Source  : bootmenu_telmios.png  (généré à l'étape 1)
+  Destination : SD:\.tmp_update\res\
+
+Tu dois aussi copier l'icône :
+  Source  : onion\.tmp_update\res\sdcard.ico
+  Destination : SD:\.tmp_update\res\sdcard.ico
+
+-----------------------------------------------------------
+ÉTAPE 7 — Installer TelmOS dans son sous-dossier
+-----------------------------------------------------------
+Crée le dossier SD:\telmios\ et copie TOUT le contenu
+du dossier "Telmios/" dedans :
+
+Structure finale dans la SD :
+  SD:\telmios\.tmp_update\     ← was Telmios\.tmp_update\
+  SD:\telmios\miyoo\           ← was Telmios\miyoo\
+  SD:\telmios\miyoo354\        ← was Telmios\miyoo354\
+  SD:\telmios\Music\           ← was Telmios\Music\
+  SD:\telmios\Saves\           ← was Telmios\Saves\
+  SD:\telmios\Stories\         ← was Telmios\Stories\
+
+-----------------------------------------------------------
+ÉTAPE 8 — Installer OnionOS dans son sous-dossier
+-----------------------------------------------------------
+Crée le dossier SD:\onion\ et copie TOUT le contenu
+du dossier "onion/" dedans :
+
+Structure finale dans la SD :
+  SD:\onion\.tmp_update\       ← was onion\.tmp_update\
+  SD:\onion\miyoo\             ← was onion\miyoo\
+  SD:\onion\App\               ← was onion\App\
+  SD:\onion\BIOS\              ← was onion\BIOS\
+  SD:\onion\Emu\               ← was onion\Emu\
+  SD:\onion\Icons\             ← was onion\Icons\
+  SD:\onion\Media\             ← was onion\Media\
+  SD:\onion\RetroArch\         ← was onion\RetroArch\
+  SD:\onion\Roms\              ← was onion\Roms\
+  SD:\onion\Saves\             ← was onion\Saves\
+  SD:\onion\Screenshots\       ← was onion\Screenshots\
+  SD:\onion\Themes\            ← was onion\Themes\
+
+-----------------------------------------------------------
+STRUCTURE FINALE DE LA CARTE SD
+-----------------------------------------------------------
+  SD:\
+  ├── .tmp_update\            ← BOOTLOADER
+  │   ├── runtime.sh          ← Script sélecteur
+  │   ├── bin\                ← Programmes (copié d'OnionOS)
+  │   ├── lib\                ← Librairies (copié de TelmOS)
+  │   └── res\
+  │       ├── bootmenu_onion.png
+  │       ├── bootmenu_telmios.png
+  │       └── sdcard.ico
+  ├── telmios\                ← TelmOS complet
+  ├── onion\                  ← OnionOS complet
+  └── autorun.inf
+
+-----------------------------------------------------------
+ÉTAPE 9 — TESTER !
+-----------------------------------------------------------
+1. Éjecte proprement la carte SD du PC
+2. Insère la carte SD dans le Miyoo Mini Plus
+3. Allume la console
+4. Le menu de sélection doit apparaître !
+
+Utilisation du menu :
+  ◄ ►  D-pad gauche/droite = naviguer entre les OS
+  A    = Confirmer la sélection
+  B    = Relancer le dernier OS choisi (annuler)
+
+Le choix est mémorisé automatiquement pour le prochain
+démarrage (fichier .bootchoice à la racine de la SD).
+
+-----------------------------------------------------------
+DÉPANNAGE
+-----------------------------------------------------------
+
+Problème : Écran noir au démarrage
+→ Vérifie que SD:\.tmp_update\runtime.sh est présent
+→ Vérifie que SD:\.tmp_update\bin\ contient les binaires
+→ Vérifie que SD:\.tmp_update\lib\ contient les libs
+
+Problème : "OS introuvable" au démarrage
+→ Vérifie que les dossiers SD:\telmios\ et SD:\onion\
+   existent et contiennent les fichiers des OS
+
+Problème : Le menu ne s'affiche pas (pas d'image)
+→ Les images PNG ne sont pas copiées dans res/
+→ Regénère les images avec generate_bootmenu.py
+→ Copie-les dans SD:\.tmp_update\res\
+
+Problème : La console redémarre en boucle
+→ Copier les libs de TelmOS (pas d'Onion) dans .tmp_update\lib\
+
+-----------------------------------------------------------
+NOTES IMPORTANTES
+-----------------------------------------------------------
+- Les ROMs se mettent dans SD:\onion\Roms\ pour OnionOS
+- Les ROMs se mettent dans SD:\telmios\Stories\ pour TelmOS
+  (TelmOS utilise des histoires, pas des ROMs classiques)
+- Les sauvegardes sont séparées par OS
+- Le Wi-Fi fonctionne normalement dans chaque OS
+
+-----------------------------------------------------------
+Bonne utilisation du dual boot !
+===========================================================

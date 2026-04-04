@@ -1,0 +1,13 @@
+# Scripts shell -> toujours LF (Linux)
+*.sh        text eol=lf
+# Config shell -> LF
+*.cfg       text eol=lf
+# Autres textes -> auto
+*.md        text eol=lf
+*.py        text eol=lf
+*.ps1       text eol=crlf
+*.txt       text eol=crlf
+# Binaires
+*.png       binary
+*.raw       binary
+*.ico       binary
