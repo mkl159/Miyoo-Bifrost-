@@ -2,10 +2,13 @@
 
 [![OnionOS](https://img.shields.io/badge/OnionOS-v4.3.1-4CAF50?style=for-the-badge&logo=github&logoColor=white)](https://github.com/OnionUI/Onion)
 [![TelmiOS](https://img.shields.io/badge/TelmiOS-v1.10.1-FF8C00?style=for-the-badge&logo=github&logoColor=white)](https://github.com/DantSu/Telmi-story-teller)
+[![Vibe coded with Claude Code](https://img.shields.io/badge/Vibe%20coded%20with-Claude%20Code-blueviolet?style=for-the-badge&logo=anthropic&logoColor=white)](https://claude.ai/code)
 
 **Dual Boot pour Miyoo Mini / Mini Plus — OnionOS + TelmiOS**
 
 Un bootloader léger qui affiche un menu graphique au démarrage pour choisir entre **OnionOS** (retrogaming) et **TelmiOS** (histoires pour enfants), avec protection parentale par code secret optionnelle.
+
+> 🤖 Ce projet a été entièrement **vibe codé avec [Claude Code](https://claude.ai/code)** — l'IA de développement d'Anthropic.
 
 ---
 
