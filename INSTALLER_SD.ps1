@@ -14,17 +14,28 @@ Write-Host ""
 
 # --- Détection des chemins ---
 $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
-$SD = "E:"
 
-# Vérifier que la SD est accessible
+# Demander à l'utilisateur de choisir la cible
+Write-Host "Sur quel lecteur ou dossier veux-tu installer le Dual Boot ?" -ForegroundColor Yellow
+$SD = Read-Host "Entrez la lettre (ex: E, F) ou le chemin complet"
+
+# Nettoyage de l'entrée (enlève les espaces et l'anti-slash final s'il y en a un)
+$SD = $SD.Trim().TrimEnd('\')
+
+# Si l'utilisateur a juste tapé une lettre (ex: "F"), on ajoute ":"
+if ($SD.Length -eq 1 -and $SD -match "^[A-Za-z]$") {
+    $SD = "$SD`:"
+}
+
+# Vérifier que la SD (ou le dossier) est accessible
 if (-not (Test-Path "$SD\")) {
-    Write-Host "ERREUR : La carte SD E:\ n'est pas trouvee !" -ForegroundColor Red
-    Write-Host "Verifie que la carte SD est bien inseree et visible sous la lettre E:"
+    Write-Host "ERREUR : Le chemin '$SD' n'est pas trouve ou est inaccessible !" -ForegroundColor Red
+    Write-Host "Verifie que la carte SD est bien inseree ou que le chemin est correct."
     Read-Host "Appuie sur Entree pour quitter"
     exit 1
 }
 
-Write-Host "Carte SD trouvee : $SD" -ForegroundColor Green
+Write-Host "Cible trouvee : $SD" -ForegroundColor Green
 Write-Host "Dossier source   : $SCRIPT_DIR" -ForegroundColor Green
 Write-Host ""
 
@@ -69,11 +80,11 @@ Write-Host "ETAPE 2/7 - Installation du bootloader..." -ForegroundColor Yellow
 
 # Copier le .tmp_update du DualBoot à la racine
 Copy-Item "$SRC_DUALBOOT\.tmp_update" "$SD\.tmp_update" -Recurse -Force
-Write-Host "  Copie : DualBoot\.tmp_update\ -> SD:\.tmp_update\" -ForegroundColor Gray
+Write-Host "  Copie : DualBoot\.tmp_update\ -> $SD\.tmp_update\" -ForegroundColor Gray
 
 # Copier autorun.inf
 Copy-Item "$SRC_DUALBOOT\autorun.inf" "$SD\autorun.inf" -Force
-Write-Host "  Copie : DualBoot\autorun.inf -> SD:\autorun.inf" -ForegroundColor Gray
+Write-Host "  Copie : DualBoot\autorun.inf -> $SD\autorun.inf" -ForegroundColor Gray
 Write-Host "  OK" -ForegroundColor Green
 
 # =============================================================
@@ -81,7 +92,7 @@ Write-Host ""
 Write-Host "ETAPE 3/7 - Copie du fichier 'updater' (point d'entree)..." -ForegroundColor Yellow
 
 Copy-Item "$SRC_ONION\.tmp_update\updater" "$SD\.tmp_update\updater" -Force
-Write-Host "  Copie : onion\.tmp_update\updater -> SD:\.tmp_update\updater" -ForegroundColor Gray
+Write-Host "  Copie : onion\.tmp_update\updater -> $SD\.tmp_update\updater" -ForegroundColor Gray
 Write-Host "  OK" -ForegroundColor Green
 
 # =============================================================
@@ -91,7 +102,7 @@ Write-Host "  (Cette etape peut prendre 1-2 minutes...)" -ForegroundColor Gray
 
 New-Item -ItemType Directory -Force -Path "$SD\.tmp_update\bin" | Out-Null
 Copy-Item "$SRC_ONION\.tmp_update\bin\*" "$SD\.tmp_update\bin\" -Recurse -Force
-Write-Host "  Copie : onion\.tmp_update\bin\ -> SD:\.tmp_update\bin\" -ForegroundColor Gray
+Write-Host "  Copie : onion\.tmp_update\bin\ -> $SD\.tmp_update\bin\" -ForegroundColor Gray
 Write-Host "  OK" -ForegroundColor Green
 
 # =============================================================
@@ -101,12 +112,12 @@ Write-Host "  (Cette etape peut prendre 1-2 minutes...)" -ForegroundColor Gray
 
 New-Item -ItemType Directory -Force -Path "$SD\.tmp_update\lib" | Out-Null
 Copy-Item "$SRC_TELMIOS\.tmp_update\lib\*" "$SD\.tmp_update\lib\" -Recurse -Force
-Write-Host "  Copie : Telmios\.tmp_update\lib\ -> SD:\.tmp_update\lib\" -ForegroundColor Gray
+Write-Host "  Copie : Telmios\.tmp_update\lib\ -> $SD\.tmp_update\lib\" -ForegroundColor Gray
 Write-Host "  OK" -ForegroundColor Green
 
 # =============================================================
 Write-Host ""
-Write-Host "ETAPE 6/7 - Installation de TelmOS dans SD:\telmios\..." -ForegroundColor Yellow
+Write-Host "ETAPE 6/7 - Installation de TelmOS dans $SD\telmios\..." -ForegroundColor Yellow
 Write-Host "  (Cette etape peut prendre quelques minutes...)" -ForegroundColor Gray
 
 if (Test-Path "$SD\Telmios") {
@@ -116,19 +127,19 @@ if (Test-Path "$SD\telmios") {
     Remove-Item "$SD\telmios" -Recurse -Force
 }
 Copy-Item "$SRC_TELMIOS" "$SD\telmios" -Recurse -Force
-Write-Host "  Copie : Telmios\ -> SD:\telmios\" -ForegroundColor Gray
+Write-Host "  Copie : Telmios\ -> $SD\telmios\" -ForegroundColor Gray
 Write-Host "  OK" -ForegroundColor Green
 
 # =============================================================
 Write-Host ""
-Write-Host "ETAPE 7/7 - Installation de OnionOS dans SD:\onion\..." -ForegroundColor Yellow
+Write-Host "ETAPE 7/7 - Installation de OnionOS dans $SD\onion\..." -ForegroundColor Yellow
 Write-Host "  (Cette etape peut prendre quelques minutes...)" -ForegroundColor Gray
 
 if (Test-Path "$SD\onion") {
     Remove-Item "$SD\onion" -Recurse -Force
 }
 Copy-Item "$SRC_ONION" "$SD\onion" -Recurse -Force
-Write-Host "  Copie : onion\ -> SD:\onion\" -ForegroundColor Gray
+Write-Host "  Copie : onion\ -> $SD\onion\" -ForegroundColor Gray
 Write-Host "  OK" -ForegroundColor Green
 
 # =============================================================
@@ -164,8 +175,8 @@ if ($errors -eq 0) {
     Write-Host "  INSTALLATION REUSSIE !" -ForegroundColor Green
     Write-Host "========================================" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "  Ejecte la carte SD proprement (clic droit"
-    Write-Host "  sur E: dans l'explorateur > Ejecter)"
+    Write-Host "  Ejecte proprement la carte SD cible (clic droit"
+    Write-Host "  sur $SD dans l'explorateur > Ejecter)"
     Write-Host "  puis insere-la dans le Miyoo Mini Plus."
     Write-Host ""
     Write-Host "  Au demarrage :"
