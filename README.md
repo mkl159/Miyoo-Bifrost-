@@ -74,15 +74,16 @@ Avant de commencer, télécharge et prépare ces éléments sur ton PC :
 | **TelmiOS** (ex: `TelmiOS_v1.10.1.zip`) | [Releases TelmiOS](https://github.com/DantSu/Telmi-story-teller/releases) |
 | **Python 3** | [python.org/downloads](https://www.python.org/downloads/) — cocher *"Add to PATH"* à l'installation |
 
-Une fois téléchargés, extrais les trois archives. Tu dois avoir ces dossiers côte à côte :
+Une fois téléchargés, extrais les trois archives. Tu dois avoir ces dossiers organisés de cette façon :
 
 ```
-📁 Miyoo-Bifrost\        ← ce projet
-📁 Telmios\              ← contenu de l'archive TelmiOS
-📁 onion\                ← contenu de l'archive OnionOS
+📁 MonDossier\                   ← n'importe quel dossier sur ton PC
+    📁 Miyoo-Bifrost\            ← ce projet (extrait du ZIP)
+    📁 Onion-v4.3.1-1\           ← contenu de l'archive OnionOS
+    📁 TelmiOS_v1.10.1\          ← contenu de l'archive TelmiOS
 ```
 
-> ⚠️ Les noms de dossiers doivent être exactement `Telmios` et `onion` (respecter la casse).
+> ✅ **Les noms de dossiers n'ont pas besoin d'être modifiés** — l'installateur détecte automatiquement tout dossier commençant par `Onion` ou `Telmi`, qu'il soit dans le même dossier ou dans le dossier parent.
 
 ---
 
