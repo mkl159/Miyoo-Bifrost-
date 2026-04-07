@@ -444,12 +444,27 @@ def main():
     print("  Langues : FR / EN / ES")
     print("=" * 56)
 
-    SD_RES = os.path.join("E:\\", ".tmp_update", "res")
-    if os.path.isdir(SD_RES):
-        print(f"\n[OK] Carte SD trouvee -> RAW direct sur {SD_RES}")
+    # Chemin SD passé en argument (ex: depuis l'installateur PowerShell)
+    if len(sys.argv) > 1:
+        sd_root = sys.argv[1].rstrip("\\").rstrip("/")
+        SD_RES = os.path.join(sd_root, ".tmp_update", "res")
+        if os.path.isdir(SD_RES):
+            print(f"\n[OK] Carte SD -> RAW direct sur {SD_RES}")
+        else:
+            os.makedirs(SD_RES, exist_ok=True)
+            print(f"\n[OK] Dossier cree -> {SD_RES}")
     else:
-        SD_RES = OUTPUT_DIR
-        print(f"\n[!] Carte SD E: introuvable -> RAW dans {SD_RES}")
+        # Auto-detection : essaie toutes les lettres de lecteur
+        SD_RES = None
+        for letter in "DEFGHIJKLMNOPQRSTUVWXYZ":
+            candidate = os.path.join(f"{letter}:\\", ".tmp_update", "res")
+            if os.path.isdir(candidate):
+                SD_RES = candidate
+                print(f"\n[OK] Carte SD trouvee -> RAW direct sur {SD_RES}")
+                break
+        if SD_RES is None:
+            SD_RES = OUTPUT_DIR
+            print(f"\n[!] Carte SD introuvable -> RAW dans {SD_RES}")
 
     for lang in ("FR", "EN", "ES"):
         print(f"\n{'-'*30}")

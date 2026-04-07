@@ -91,7 +91,7 @@ if (-not (Test-Path $SRC_DUALBOOT)) {
 }
 
 # =============================================================
-Write-Host "ETAPE 1/7 - Nettoyage de l'ancienne structure..." -ForegroundColor Yellow
+Write-Host "ETAPE 1/8 - Nettoyage de l'ancienne structure..." -ForegroundColor Yellow
 foreach ($item in @("$SD\DualBoot", "$SD\.tmp_update")) {
     if (Test-Path $item) {
         Remove-Item $item -Recurse -Force
@@ -105,7 +105,7 @@ Write-Host "  OK" -ForegroundColor Green
 
 # =============================================================
 Write-Host ""
-Write-Host "ETAPE 2/7 - Installation du bootloader Bifrost..." -ForegroundColor Yellow
+Write-Host "ETAPE 2/8 - Installation du bootloader Bifrost..." -ForegroundColor Yellow
 Copy-Item "$SRC_DUALBOOT\.tmp_update" "$SD\.tmp_update" -Recurse -Force
 Write-Host "  Copie : DualBoot\.tmp_update\ -> $SD\.tmp_update\" -ForegroundColor Gray
 Copy-Item "$SRC_DUALBOOT\autorun.inf" "$SD\autorun.inf" -Force
@@ -114,14 +114,14 @@ Write-Host "  OK" -ForegroundColor Green
 
 # =============================================================
 Write-Host ""
-Write-Host "ETAPE 3/7 - Copie du fichier 'updater'..." -ForegroundColor Yellow
+Write-Host "ETAPE 3/8 - Copie du fichier 'updater'..." -ForegroundColor Yellow
 Copy-Item "$SRC_ONION\.tmp_update\updater" "$SD\.tmp_update\updater" -Force
 Write-Host "  Copie : updater -> $SD\.tmp_update\updater" -ForegroundColor Gray
 Write-Host "  OK" -ForegroundColor Green
 
 # =============================================================
 Write-Host ""
-Write-Host "ETAPE 4/7 - Copie des binaires (bin/)..." -ForegroundColor Yellow
+Write-Host "ETAPE 4/8 - Copie des binaires (bin/)..." -ForegroundColor Yellow
 Write-Host "  (Peut prendre 1-2 minutes...)" -ForegroundColor Gray
 New-Item -ItemType Directory -Force -Path "$SD\.tmp_update\bin" | Out-Null
 Copy-Item "$SRC_ONION_BIN\*" "$SD\.tmp_update\bin\" -Recurse -Force
@@ -130,7 +130,7 @@ Write-Host "  OK" -ForegroundColor Green
 
 # =============================================================
 Write-Host ""
-Write-Host "ETAPE 5/7 - Copie des librairies (lib/)..." -ForegroundColor Yellow
+Write-Host "ETAPE 5/8 - Copie des librairies (lib/)..." -ForegroundColor Yellow
 Write-Host "  (Peut prendre 1-2 minutes...)" -ForegroundColor Gray
 New-Item -ItemType Directory -Force -Path "$SD\.tmp_update\lib" | Out-Null
 Copy-Item "$SRC_TELMIOS\.tmp_update\lib\*" "$SD\.tmp_update\lib\" -Recurse -Force
@@ -139,7 +139,7 @@ Write-Host "  OK" -ForegroundColor Green
 
 # =============================================================
 Write-Host ""
-Write-Host "ETAPE 6/7 - Installation de TelmiOS dans $SD\telmios\..." -ForegroundColor Yellow
+Write-Host "ETAPE 6/8 - Installation de TelmiOS dans $SD\telmios\..." -ForegroundColor Yellow
 Write-Host "  (Peut prendre quelques minutes...)" -ForegroundColor Gray
 foreach ($t in @("$SD\Telmios","$SD\telmios")) {
     if (Test-Path $t) { Remove-Item $t -Recurse -Force }
@@ -150,12 +150,48 @@ Write-Host "  OK" -ForegroundColor Green
 
 # =============================================================
 Write-Host ""
-Write-Host "ETAPE 7/7 - Installation de OnionOS dans $SD\onion\..." -ForegroundColor Yellow
+Write-Host "ETAPE 7/8 - Installation de OnionOS dans $SD\onion\..." -ForegroundColor Yellow
 Write-Host "  (Peut prendre quelques minutes...)" -ForegroundColor Gray
 if (Test-Path "$SD\onion") { Remove-Item "$SD\onion" -Recurse -Force }
 Copy-Item "$SRC_ONION" "$SD\onion" -Recurse -Force
 Write-Host "  Copie : OnionOS\ -> $SD\onion\" -ForegroundColor Gray
 Write-Host "  OK" -ForegroundColor Green
+
+# =============================================================
+Write-Host ""
+Write-Host "ETAPE 8/8 - Generation des images du menu de boot..." -ForegroundColor Yellow
+$pythonScript = "$SCRIPT_DIR\generate_bootmenu.py"
+if (-not (Test-Path $pythonScript)) {
+    Write-Host "  [IGNORE] generate_bootmenu.py introuvable dans $SCRIPT_DIR" -ForegroundColor Yellow
+} else {
+    # Verifier que Python est disponible
+    $pythonCmd = $null
+    foreach ($cmd in @("python", "python3")) {
+        try {
+            $ver = & $cmd --version 2>&1
+            if ($LASTEXITCODE -eq 0) { $pythonCmd = $cmd; break }
+        } catch {}
+    }
+    if (-not $pythonCmd) {
+        Write-Host "  [IGNORE] Python non trouve. Installe Python 3 puis lance generate_bootmenu.py" -ForegroundColor Yellow
+    } else {
+        # Installer Pillow si necessaire
+        Write-Host "  Verification de Pillow..." -ForegroundColor Gray
+        $pillowCheck = & $pythonCmd -c "import PIL" 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "  Installation de Pillow (pip install Pillow)..." -ForegroundColor Gray
+            & $pythonCmd -m pip install Pillow --quiet
+        }
+        # Lancer le generateur avec le chemin de la SD
+        Write-Host "  Generation des images RAW (FR/EN/ES)..." -ForegroundColor Gray
+        & $pythonCmd $pythonScript $SD
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "  OK - Images generees" -ForegroundColor Green
+        } else {
+            Write-Host "  ERREUR lors de la generation des images" -ForegroundColor Red
+        }
+    }
+}
 
 # =============================================================
 Write-Host ""
