@@ -16,19 +16,34 @@ Write-Host ""
 # --- Detection des chemins ---
 $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
 
+# Fonction qui ouvre un selecteur de dossier toujours au premier plan
+function Select-Folder {
+    param([string]$Description)
+    $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+    $dialog.Description = $Description
+    $dialog.RootFolder = "MyComputer"
+    $dialog.ShowNewFolderButton = $false
+    # Fenetre invisible TopMost pour forcer le dialog au premier plan
+    $owner = New-Object System.Windows.Forms.Form
+    $owner.TopMost = $true
+    $owner.StartPosition = "CenterScreen"
+    $owner.Size = New-Object System.Drawing.Size(0, 0)
+    $owner.Show()
+    $owner.Activate()
+    $result = $dialog.ShowDialog($owner)
+    $owner.Dispose()
+    if ($result -eq "OK") { return $dialog.SelectedPath.TrimEnd('\') }
+    return $null
+}
+
 # --- Selectionner la carte SD ---
 Write-Host "Selectionne le dossier de ta carte SD..." -ForegroundColor Yellow
-$folderSD = New-Object System.Windows.Forms.FolderBrowserDialog
-$folderSD.Description = "Selectionne la CARTE SD (ex: E:\)"
-$folderSD.RootFolder = "MyComputer"
-$folderSD.ShowNewFolderButton = $false
-if ($folderSD.ShowDialog() -ne "OK") {
+$SD = Select-Folder "Selectionne la CARTE SD (ex: E:\)"
+if (-not $SD) {
     Write-Host "Annule." -ForegroundColor Red
     Read-Host "Appuie sur Entree pour quitter"
     exit 1
 }
-$SD = $folderSD.SelectedPath.TrimEnd('\')
-
 if (-not (Test-Path "$SD\")) {
     Write-Host "ERREUR : Le chemin '$SD' n'est pas accessible !" -ForegroundColor Red
     Read-Host "Appuie sur Entree pour quitter"
@@ -39,31 +54,23 @@ Write-Host ""
 
 # --- Selectionner le dossier OnionOS ---
 Write-Host "Selectionne le dossier OnionOS (ex: Onion-v4.3.1-1)..." -ForegroundColor Yellow
-$folderOnion = New-Object System.Windows.Forms.FolderBrowserDialog
-$folderOnion.Description = "Selectionne le dossier ONIONOS (ex: Onion-v4.3.1-1)"
-$folderOnion.RootFolder = "MyComputer"
-$folderOnion.ShowNewFolderButton = $false
-if ($folderOnion.ShowDialog() -ne "OK") {
+$SRC_ONION = Select-Folder "Selectionne le dossier ONIONOS (ex: Onion-v4.3.1-1)"
+if (-not $SRC_ONION) {
     Write-Host "Annule." -ForegroundColor Red
     Read-Host "Appuie sur Entree pour quitter"
     exit 1
 }
-$SRC_ONION = $folderOnion.SelectedPath.TrimEnd('\')
 Write-Host "OnionOS  : $SRC_ONION" -ForegroundColor Green
 Write-Host ""
 
 # --- Selectionner le dossier TelmiOS ---
 Write-Host "Selectionne le dossier TelmiOS (ex: TelmiOS_v1.10.1)..." -ForegroundColor Yellow
-$folderTelmi = New-Object System.Windows.Forms.FolderBrowserDialog
-$folderTelmi.Description = "Selectionne le dossier TELMIOS (ex: TelmiOS_v1.10.1)"
-$folderTelmi.RootFolder = "MyComputer"
-$folderTelmi.ShowNewFolderButton = $false
-if ($folderTelmi.ShowDialog() -ne "OK") {
+$SRC_TELMIOS = Select-Folder "Selectionne le dossier TELMIOS (ex: TelmiOS_v1.10.1)"
+if (-not $SRC_TELMIOS) {
     Write-Host "Annule." -ForegroundColor Red
     Read-Host "Appuie sur Entree pour quitter"
     exit 1
 }
-$SRC_TELMIOS = $folderTelmi.SelectedPath.TrimEnd('\')
 Write-Host "TelmiOS  : $SRC_TELMIOS" -ForegroundColor Green
 Write-Host ""
 
