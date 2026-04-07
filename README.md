@@ -72,7 +72,7 @@ Avant de commencer, télécharge et prépare ces éléments sur ton PC :
 | **Ce projet** (Miyoo-Bifrost) | Bouton vert **Code → Download ZIP** sur cette page |
 | **OnionOS** (ex: `Onion-v4.3.1-1.zip`) | [Releases OnionOS](https://github.com/OnionUI/Onion/releases) |
 | **TelmiOS** (ex: `TelmiOS_v1.10.1.zip`) | [Releases TelmiOS](https://github.com/DantSu/Telmi-story-teller/releases) |
-| **Python 3** | [python.org/downloads](https://www.python.org/downloads/) — cocher *"Add to PATH"* à l'installation |
+| **Python 3** *(optionnel)* | [python.org/downloads](https://www.python.org/downloads/) — cocher *"Add to PATH"* — nécessaire pour les images du menu |
 
 Une fois téléchargés, extrais les trois archives. Tu dois avoir ces dossiers organisés de cette façon :
 
@@ -87,16 +87,14 @@ Une fois téléchargés, extrais les trois archives. Tu dois avoir ces dossiers 
 
 ---
 
-### Étape 1 — Installer Python et Pillow
+### Étape 1 — Installer Python *(optionnel mais recommandé)*
 
-1. Ouvre le **menu Démarrer**, cherche `cmd`, clique **Invite de commandes**
-2. Tape cette commande et appuie sur **Entrée** :
-   ```
-   pip install Pillow
-   ```
-3. Attends que l'installation se termine (tu verras `Successfully installed Pillow`)
+Python est nécessaire pour générer les images du menu de boot. L'installateur installe **Pillow automatiquement** si Python est présent.
 
-> Si tu vois une erreur `pip n'est pas reconnu`, réinstalle Python en cochant bien **"Add Python to PATH"**.
+1. Télécharge Python 3 sur [python.org/downloads](https://www.python.org/downloads/)
+2. Lance l'installateur et coche bien **"Add Python to PATH"** avant de cliquer *Install Now*
+
+> Si tu sautes cette étape, l'installation fonctionnera quand même mais les images du menu ne seront pas générées (écran noir au démarrage).
 
 ---
 
@@ -115,52 +113,36 @@ Une fois téléchargés, extrais les trois archives. Tu dois avoir ces dossiers 
 
 ---
 
-### Étape 3 — Générer les images du menu de démarrage
-
-Les images du menu (Onion / TelmiOS) doivent être générées sur ton PC.
-
-1. Ouvre l'**Explorateur de fichiers**
-2. Va dans le dossier `Miyoo-Bifrost`
-3. Dans la barre d'adresse en haut, clique et tape `cmd` puis **Entrée**
-   → Une invite de commandes s'ouvre directement dans ce dossier
-4. Tape :
-   ```
-   python generate_bootmenu.py
-   ```
-5. Tu dois voir s'afficher :
-   ```
-   [OK] Carte SD trouvee -> RAW direct sur E:\.tmp_update\res
-   -> bootmenu_onion_FR ... OK
-   -> bootmenu_telmios_FR ... OK
-   ...
-   TERMINE !
-   ```
-
-> Si la carte SD n'est pas encore insérée, le script crée les fichiers dans le dossier `Miyoo-Bifrost`. Il faudra les copier manuellement dans `SD:\.tmp_update\res\` plus tard.
-
----
-
-### Étape 4 — Lancer l'installateur automatique
+### Étape 3 — Lancer l'installateur automatique
 
 1. Dans le dossier `Miyoo-Bifrost`, fais un **clic droit** sur `INSTALLER_SD.ps1`
 2. Clique **Exécuter avec PowerShell**
 
    > Si Windows bloque le script : clic droit → **Propriétés** → coche **Débloquer** → OK, puis réessaie.
 
-3. L'installateur va :
-   - ✅ Copier le bootloader Bifrost sur la SD
-   - ✅ Copier les binaires d'OnionOS
-   - ✅ Copier les librairies de TelmiOS
-   - ✅ Installer TelmiOS dans `SD:\telmios\`
-   - ✅ Installer OnionOS dans `SD:\onion\`
-   - ✅ Vérifier que tout est en place
+3. **Trois fenêtres de sélection** s'ouvrent dans l'ordre — navigue et clique OK :
+   - 📁 **Carte SD** — sélectionne ton lecteur SD (ex: `E:\`)
+   - 📁 **OnionOS** — sélectionne le dossier `Onion-v4.3.1-1`
+   - 📁 **TelmiOS** — sélectionne le dossier `TelmiOS_v1.10.1`
 
-4. À la fin, tu dois voir **"INSTALLATION REUSSIE !"** en vert
+4. L'installateur fait tout automatiquement :
+   - ✅ Copie le bootloader Bifrost sur la SD
+   - ✅ Copie les binaires d'OnionOS
+   - ✅ Copie les librairies de TelmiOS
+   - ✅ Installe TelmiOS dans `SD:\telmios\`
+   - ✅ Installe OnionOS dans `SD:\onion\`
+   - ✅ Installe Pillow si nécessaire (`pip install Pillow` automatique)
+   - ✅ Génère les images du menu de boot (FR / EN / ES)
+   - ✅ Vérifie que tout est en place
+
+5. À la fin, tu dois voir **"INSTALLATION REUSSIE !"** en vert
    - Si des fichiers sont marqués `[MANQUANT]`, relis les étapes précédentes
+
+> **Python requis pour les images du menu.** Si Python n'est pas installé, l'installateur continue sans générer les images. Installe Python 3 depuis [python.org](https://www.python.org/downloads/) (cocher *"Add to PATH"*), puis relance le script.
 
 ---
 
-### Étape 5 — Éjecter la carte SD proprement
+### Étape 4 — Éjecter la carte SD proprement
 
 > ⚠️ Ne retire pas la carte SD brutalement — des données pourraient être corrompues.
 
@@ -171,7 +153,7 @@ Les images du menu (Onion / TelmiOS) doivent être générées sur ton PC.
 
 ---
 
-### Étape 6 — Insérer la carte SD et démarrer le Miyoo
+### Étape 5 — Insérer la carte SD et démarrer le Miyoo
 
 1. Insère la carte SD dans ton **Miyoo Mini / Mini Plus**
 2. Allume la console en maintenant le bouton Power
