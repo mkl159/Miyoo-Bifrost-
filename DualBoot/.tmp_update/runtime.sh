@@ -71,6 +71,8 @@ load_settings() {
 # ---- init_system ----
 init_system() {
     load_settings
+    # Activer le controleur d'ecran (obligatoire avant tout acces a /dev/fb0)
+    cat /proc/ls 2>/dev/null
     brightness=$(/customer/app/jsonval brightness 2>/dev/null || echo 7)
     brightness_raw=$(awk "BEGIN { print int(3 * exp(0.350656 * $brightness) + 0.5) }" 2>/dev/null || echo 8)
     echo 800 > /sys/class/pwm/pwmchip0/pwm0/period 2>/dev/null
