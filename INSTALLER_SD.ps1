@@ -52,6 +52,36 @@ if (-not (Test-Path "$SD\")) {
 Write-Host "Cible    : $SD" -ForegroundColor Green
 Write-Host ""
 
+# --- Proposition de formatage FAT32 ---
+$sdLetter = ($SD -replace ':\\.*', '').ToUpper()
+$vol = Get-Volume -DriveLetter $sdLetter -ErrorAction SilentlyContinue
+if ($vol) {
+    $sizeGB = [math]::Round($vol.Size / 1GB, 1)
+    $currentFS = $vol.FileSystem
+    Write-Host "Carte SD detectee : $sizeGB Go, format actuel : $currentFS" -ForegroundColor Cyan
+    if ($currentFS -ne "FAT32") {
+        Write-Host ""
+        Write-Host "  RECOMMANDATION : Le Miyoo fonctionne mieux en FAT32." -ForegroundColor Yellow
+        if ($sizeGB -le 32) {
+            $rep = Read-Host "  Formater la carte SD en FAT32 maintenant ? (O/N)"
+            if ($rep -match "^[oOyY]") {
+                Write-Host "  Formatage en FAT32... (toutes les donnees seront effacees)" -ForegroundColor Red
+                Format-Volume -DriveLetter $sdLetter -FileSystem FAT32 -NewFileSystemLabel "MiyooBoot" -AllocationUnitSize 32768 -Confirm:$false -Force | Out-Null
+                Write-Host "  Format FAT32 OK" -ForegroundColor Green
+            } else {
+                Write-Host "  Formatage ignore - on continue avec $currentFS" -ForegroundColor Gray
+            }
+        } else {
+            Write-Host "  Carte > 32 Go : FAT32 non supporte par Windows au-dela de 32 Go." -ForegroundColor Yellow
+            Write-Host "  Utilise Rufus (https://rufus.ie) pour formater en FAT32 si besoin." -ForegroundColor Yellow
+            Write-Host "  On continue avec $currentFS..." -ForegroundColor Gray
+        }
+    } else {
+        Write-Host "  Deja en FAT32 - parfait !" -ForegroundColor Green
+    }
+    Write-Host ""
+}
+
 # --- Selectionner le dossier OnionOS ---
 Write-Host "Selectionne le dossier OnionOS (ex: Onion-v4.3.1-1)..." -ForegroundColor Yellow
 $SRC_ONION = Select-Folder "Selectionne le dossier ONIONOS (ex: Onion-v4.3.1-1)"
