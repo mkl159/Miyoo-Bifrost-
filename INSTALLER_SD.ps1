@@ -5,6 +5,7 @@
 # =============================================================
 
 $ErrorActionPreference = "Stop"
+Add-Type -AssemblyName System.Windows.Forms
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
@@ -15,11 +16,18 @@ Write-Host ""
 # --- Detection des chemins ---
 $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-# --- Demander la cible (lettre SD ou chemin) ---
-Write-Host "Sur quel lecteur veux-tu installer le Dual Boot ?" -ForegroundColor Yellow
-$SD = Read-Host "Entre la lettre (ex: E, F) ou le chemin complet"
-$SD = $SD.Trim().TrimEnd('\')
-if ($SD.Length -eq 1 -and $SD -match "^[A-Za-z]$") { $SD = "$SD`:" }
+# --- Selectionner la carte SD ---
+Write-Host "Selectionne le dossier de ta carte SD..." -ForegroundColor Yellow
+$folderSD = New-Object System.Windows.Forms.FolderBrowserDialog
+$folderSD.Description = "Selectionne la CARTE SD (ex: E:\)"
+$folderSD.RootFolder = "MyComputer"
+$folderSD.ShowNewFolderButton = $false
+if ($folderSD.ShowDialog() -ne "OK") {
+    Write-Host "Annule." -ForegroundColor Red
+    Read-Host "Appuie sur Entree pour quitter"
+    exit 1
+}
+$SD = $folderSD.SelectedPath.TrimEnd('\')
 
 if (-not (Test-Path "$SD\")) {
     Write-Host "ERREUR : Le chemin '$SD' n'est pas accessible !" -ForegroundColor Red
@@ -27,52 +35,39 @@ if (-not (Test-Path "$SD\")) {
     exit 1
 }
 Write-Host "Cible    : $SD" -ForegroundColor Green
-Write-Host "Sources  : $SCRIPT_DIR" -ForegroundColor Green
 Write-Host ""
 
-# --- Auto-detection des dossiers OS ---
-# Cherche dans le dossier du script ET dans les dossiers parents (jusqu'a 2 niveaux)
-$searchPaths = @(
-    $SCRIPT_DIR,
-    (Split-Path -Parent $SCRIPT_DIR),
-    (Split-Path -Parent (Split-Path -Parent $SCRIPT_DIR))
-)
-
-$onionFolder = $null
-$telmiFolder  = $null
-foreach ($searchPath in $searchPaths) {
-    if (-not $onionFolder -and (Test-Path $searchPath)) {
-        $onionFolder = Get-ChildItem -Path $searchPath -Directory | Where-Object { $_.Name -like "Onion*" } | Select-Object -First 1
-    }
-    if (-not $telmiFolder -and (Test-Path $searchPath)) {
-        $telmiFolder = Get-ChildItem -Path $searchPath -Directory | Where-Object { $_.Name -like "Telmi*" } | Select-Object -First 1
-    }
-}
-
-if (-not $onionFolder) {
-    Write-Host "ERREUR : Aucun dossier OnionOS trouve !" -ForegroundColor Red
-    Write-Host "         Place le dossier OnionOS (ex: Onion-v4.3.1-1) dans :"
-    Write-Host "         $SCRIPT_DIR"
-    Write-Host "         ou dans le dossier parent."
+# --- Selectionner le dossier OnionOS ---
+Write-Host "Selectionne le dossier OnionOS (ex: Onion-v4.3.1-1)..." -ForegroundColor Yellow
+$folderOnion = New-Object System.Windows.Forms.FolderBrowserDialog
+$folderOnion.Description = "Selectionne le dossier ONIONOS (ex: Onion-v4.3.1-1)"
+$folderOnion.RootFolder = "MyComputer"
+$folderOnion.ShowNewFolderButton = $false
+if ($folderOnion.ShowDialog() -ne "OK") {
+    Write-Host "Annule." -ForegroundColor Red
     Read-Host "Appuie sur Entree pour quitter"
     exit 1
 }
-if (-not $telmiFolder) {
-    Write-Host "ERREUR : Aucun dossier TelmiOS trouve !" -ForegroundColor Red
-    Write-Host "         Place le dossier TelmiOS (ex: TelmiOS_v1.10.1) dans :"
-    Write-Host "         $SCRIPT_DIR"
-    Write-Host "         ou dans le dossier parent."
-    Read-Host "Appuie sur Entree pour quitter"
-    exit 1
-}
-
-$SRC_DUALBOOT = "$SCRIPT_DIR\DualBoot"
-$SRC_ONION    = $onionFolder.FullName
-$SRC_TELMIOS  = $telmiFolder.FullName
-
+$SRC_ONION = $folderOnion.SelectedPath.TrimEnd('\')
 Write-Host "OnionOS  : $SRC_ONION" -ForegroundColor Green
+Write-Host ""
+
+# --- Selectionner le dossier TelmiOS ---
+Write-Host "Selectionne le dossier TelmiOS (ex: TelmiOS_v1.10.1)..." -ForegroundColor Yellow
+$folderTelmi = New-Object System.Windows.Forms.FolderBrowserDialog
+$folderTelmi.Description = "Selectionne le dossier TELMIOS (ex: TelmiOS_v1.10.1)"
+$folderTelmi.RootFolder = "MyComputer"
+$folderTelmi.ShowNewFolderButton = $false
+if ($folderTelmi.ShowDialog() -ne "OK") {
+    Write-Host "Annule." -ForegroundColor Red
+    Read-Host "Appuie sur Entree pour quitter"
+    exit 1
+}
+$SRC_TELMIOS = $folderTelmi.SelectedPath.TrimEnd('\')
 Write-Host "TelmiOS  : $SRC_TELMIOS" -ForegroundColor Green
 Write-Host ""
+
+$SRC_DUALBOOT = "$SCRIPT_DIR\DualBoot"
 
 # Le bin/ d'Onion se trouve dans miyoo\app\.tmp_update\bin\
 $SRC_ONION_BIN = "$SRC_ONION\miyoo\app\.tmp_update\bin"
