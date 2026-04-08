@@ -14,6 +14,21 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 
 Add-Type -AssemblyName System.Windows.Forms
 
+# --- Fichier log (reinitialise a chaque lancement) ---
+$LOG_FILE = "$env:USERPROFILE\Desktop\bifrost_install.log"
+"" | Set-Content $LOG_FILE
+function Log {
+    param([string]$msg, [string]$level = "INFO")
+    $line = "[$(Get-Date -Format 'HH:mm:ss')] [$level] $msg"
+    Add-Content -Path $LOG_FILE -Value $line
+    if ($level -eq "ERROR") { Write-Host "  LOG: $msg" -ForegroundColor DarkRed }
+    elseif ($level -eq "WARN")  { Write-Host "  LOG: $msg" -ForegroundColor DarkYellow }
+}
+
+Log "=== Bifrost Installer start ==="
+Log "Script: $($MyInvocation.MyCommand.Path)"
+Log "User: $env:USERNAME  /  OS: $([System.Environment]::OSVersion.VersionString)"
+
 # --- Choix de la langue / Language selection / Seleccion de idioma ---
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
@@ -34,6 +49,7 @@ switch ($langChoice) {
     "2" { $INSTALL_LANG = "EN" }
     "3" { $INSTALL_LANG = "ES" }
 }
+Log "Langue choisie : $INSTALL_LANG"
 
 $MSG = @{
     FR = @{
@@ -83,6 +99,7 @@ $MSG = @{
         errBin          = "ERREUR : Dossier bin/ introuvable dans OnionOS"
         errNoSD         = "ERREUR : Le chemin '%s' n'est pas accessible !"
         errNoDual       = "ERREUR : Dossier DualBoot introuvable"
+        logSaved        = "  Log complet sauvegarde sur le Bureau"
     }
     EN = @{
         title           = "  DUAL BOOT MIYOO MINI+ - Installation"
@@ -131,6 +148,7 @@ $MSG = @{
         errBin          = "ERROR: bin/ folder not found in OnionOS"
         errNoSD         = "ERROR: Path '%s' is not accessible!"
         errNoDual       = "ERROR: DualBoot folder not found"
+        logSaved        = "  Full log saved to Desktop"
     }
     ES = @{
         title           = "  DUAL BOOT MIYOO MINI+ - Instalacion"
@@ -179,6 +197,7 @@ $MSG = @{
         errBin          = "ERROR: carpeta bin/ no encontrada en OnionOS"
         errNoSD         = "ERROR: La ruta '%s' no es accesible!"
         errNoDual       = "ERROR: Carpeta DualBoot no encontrada"
+        logSaved        = "  Log completo guardado en el Escritorio"
     }
 }
 $L = $MSG[$INSTALL_LANG]
@@ -188,9 +207,12 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host $L.title -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
+Write-Host "  (Log : $LOG_FILE)" -ForegroundColor DarkGray
+Write-Host ""
 
 # --- Detection des chemins ---
 $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
+Log "SCRIPT_DIR : $SCRIPT_DIR"
 
 # Fonction qui ouvre un selecteur de dossier toujours au premier plan
 function Select-Folder {
@@ -199,7 +221,6 @@ function Select-Folder {
     $dialog.Description = $Description
     $dialog.RootFolder = "MyComputer"
     $dialog.ShowNewFolderButton = $false
-    # Fenetre invisible TopMost pour forcer le dialog au premier plan
     $owner = New-Object System.Windows.Forms.Form
     $owner.TopMost = $true
     $owner.StartPosition = "CenterScreen"
@@ -214,13 +235,17 @@ function Select-Folder {
 
 # --- Selectionner la carte SD ---
 Write-Host "$($L.selectSD)..." -ForegroundColor Yellow
+Log "Ouverture selecteur carte SD"
 $SD = Select-Folder $L.selectSD
 if (-not $SD) {
+    Log "Carte SD : annule par l'utilisateur" "WARN"
     Write-Host $L.cancelled -ForegroundColor Red
     Read-Host $L.pressEnter
     exit 1
 }
+Log "Carte SD selectionnee : $SD"
 if (-not (Test-Path "$SD\")) {
+    Log "Carte SD inaccessible : $SD" "ERROR"
     Write-Host ($L.errNoSD -replace '%s', $SD) -ForegroundColor Red
     Read-Host $L.pressEnter
     exit 1
@@ -230,12 +255,15 @@ Write-Host ""
 
 # --- Verification et formatage FAT32 ---
 $sdLetter = ($SD -replace ':\\.*', '').ToUpper()
+Log "Lettre lecteur SD : $sdLetter"
 $vol = Get-Volume -DriveLetter $sdLetter -ErrorAction SilentlyContinue
 if ($vol) {
     $sizeGB = [math]::Round($vol.Size / 1GB, 1)
     $currentFS = $vol.FileSystem
+    Log "Volume detecte : $sizeGB Go, FS=$currentFS, Label=$($vol.FileSystemLabel)"
     Write-Host "$($L.fat32Detected) : $sizeGB Go, $($L.fat32Current) : $currentFS" -ForegroundColor Cyan
     if ($currentFS -ne "FAT32") {
+        Log "FAT32 requis mais FS=$currentFS - proposition de formatage" "WARN"
         Write-Host ""
         Write-Host $L.fat32Warn -ForegroundColor Red
         Write-Host $L.fat32Req -ForegroundColor Red
@@ -243,121 +271,163 @@ if ($vol) {
         Write-Host ""
         $rep = Read-Host $L.fat32Ask
         if ($rep -match "^[oOyYsS]") {
+            Log "Formatage FAT32 demande par l'utilisateur"
             Write-Host $L.fat32Progress -ForegroundColor Yellow
-            # diskpart supporte FAT32 quelle que soit la taille (contrairement a format.com)
             $dpScript = "select volume $sdLetter`r`nformat fs=fat32 label=MiyooBoot quick`r`nexit"
-            $dpScript | diskpart | Out-Null
-            # Verifier que ca a fonctionne
+            $dpOut = $dpScript | diskpart
+            Log "diskpart output : $($dpOut -join ' | ')"
             $volAfter = Get-Volume -DriveLetter $sdLetter -ErrorAction SilentlyContinue
             if ($volAfter -and $volAfter.FileSystem -eq "FAT32") {
+                Log "Formatage FAT32 reussi"
                 Write-Host $L.fat32Ok -ForegroundColor Green
             } else {
+                Log "Formatage FAT32 echoue - FS apres=$($volAfter.FileSystem)" "ERROR"
                 Write-Host $L.fat32Fail -ForegroundColor Red
                 Write-Host $L.fat32Rufus -ForegroundColor Yellow
+                Log "=== FIN (echec formatage) ==="
+                Write-Host $L.logSaved -ForegroundColor DarkGray
                 Read-Host $L.pressEnter
                 exit 1
             }
         } else {
+            Log "Formatage refuse par l'utilisateur - arret" "WARN"
             Write-Host ""
             Write-Host $L.fat32Abort -ForegroundColor Red
+            Log "=== FIN (annule) ==="
+            Write-Host $L.logSaved -ForegroundColor DarkGray
             Read-Host $L.pressEnter
             exit 1
         }
     } else {
+        Log "FAT32 deja present - OK"
         Write-Host $L.fat32Good -ForegroundColor Green
     }
     Write-Host ""
+} else {
+    Log "Volume non detecte pour la lettre $sdLetter" "WARN"
 }
 
 # --- Selectionner le dossier OnionOS ---
 Write-Host "$($L.selectOnion)..." -ForegroundColor Yellow
+Log "Ouverture selecteur OnionOS"
 $SRC_ONION = Select-Folder $L.selectOnion
 if (-not $SRC_ONION) {
+    Log "OnionOS : annule par l'utilisateur" "WARN"
     Write-Host $L.cancelled -ForegroundColor Red
     Read-Host $L.pressEnter
     exit 1
 }
+Log "OnionOS selectionne : $SRC_ONION"
 Write-Host "$($L.onionDir) : $SRC_ONION" -ForegroundColor Green
 Write-Host ""
 
 # --- Selectionner le dossier TelmiOS ---
 Write-Host "$($L.selectTelmi)..." -ForegroundColor Yellow
+Log "Ouverture selecteur TelmiOS"
 $SRC_TELMIOS = Select-Folder $L.selectTelmi
 if (-not $SRC_TELMIOS) {
+    Log "TelmiOS : annule par l'utilisateur" "WARN"
     Write-Host $L.cancelled -ForegroundColor Red
     Read-Host $L.pressEnter
     exit 1
 }
+Log "TelmiOS selectionne : $SRC_TELMIOS"
 Write-Host "$($L.telmiDir) : $SRC_TELMIOS" -ForegroundColor Green
 Write-Host ""
 
 $SRC_DUALBOOT = "$SCRIPT_DIR\DualBoot"
+Log "SRC_DUALBOOT : $SRC_DUALBOOT"
 
 # Le bin/ d'Onion se trouve dans miyoo\app\.tmp_update\bin\
 $SRC_ONION_BIN = "$SRC_ONION\miyoo\app\.tmp_update\bin"
+Log "Recherche bin/ dans : $SRC_ONION_BIN"
 if (-not (Test-Path $SRC_ONION_BIN)) {
-    # Fallback : .tmp_update\bin\ a la racine
     $SRC_ONION_BIN = "$SRC_ONION\.tmp_update\bin"
+    Log "Fallback bin/ : $SRC_ONION_BIN"
 }
 if (-not (Test-Path $SRC_ONION_BIN)) {
+    Log "bin/ introuvable dans OnionOS" "ERROR"
     Write-Host $L.errBin -ForegroundColor Red
     Write-Host "         $SRC_ONION\miyoo\app\.tmp_update\bin"
+    Log "=== FIN (bin/ manquant) ==="
+    Write-Host $L.logSaved -ForegroundColor DarkGray
     Read-Host $L.pressEnter
     exit 1
 }
+Log "bin/ trouve : $SRC_ONION_BIN"
 Write-Host "$($L.binDir) : $SRC_ONION_BIN" -ForegroundColor Green
 Write-Host ""
 
 if (-not (Test-Path $SRC_DUALBOOT)) {
+    Log "DualBoot introuvable : $SRC_DUALBOOT" "ERROR"
     Write-Host "$($L.errNoDual) : $SRC_DUALBOOT" -ForegroundColor Red
+    Log "=== FIN (DualBoot manquant) ==="
+    Write-Host $L.logSaved -ForegroundColor DarkGray
     Read-Host $L.pressEnter
     exit 1
 }
 
 # =============================================================
 Write-Host $L.step1 -ForegroundColor Yellow
+Log "--- ETAPE 1 : Nettoyage ---"
 foreach ($item in @("$SD\DualBoot", "$SD\.tmp_update")) {
     if (Test-Path $item) {
+        Log "Suppression : $item"
         Remove-Item $item -Recurse -Force
         Write-Host "  Supprime : $item" -ForegroundColor Gray
     }
 }
 foreach ($f in @("bootmenu_onion.png","bootmenu_telmios.png","generate_bootmenu.py","system.json","cachefile","autorun.inf")) {
-    if (Test-Path "$SD\$f") { Remove-Item "$SD\$f" -Force }
+    if (Test-Path "$SD\$f") {
+        Log "Suppression fichier racine : $f"
+        Remove-Item "$SD\$f" -Force
+    }
 }
+Log "Nettoyage termine"
 Write-Host "  OK" -ForegroundColor Green
 
 # =============================================================
 Write-Host ""
 Write-Host $L.step2 -ForegroundColor Yellow
-# Sauvegarder le dualboot.cfg existant avant ecrasement
+Log "--- ETAPE 2 : Bootloader Bifrost ---"
 $existingCfg = "$SD\.tmp_update\config\dualboot.cfg"
 $savedCfg = $null
 if (Test-Path $existingCfg) {
     $savedCfg = Get-Content $existingCfg -Raw
+    Log "Config existante sauvegardee ($($savedCfg.Length) chars)"
     Write-Host "  Config existante sauvegardee" -ForegroundColor Gray
 }
+Log "Copie DualBoot\.tmp_update -> $SD\.tmp_update"
 Copy-Item "$SRC_DUALBOOT\.tmp_update" "$SD\.tmp_update" -Recurse -Force
 Write-Host "  DualBoot\.tmp_update\ -> $SD\.tmp_update\" -ForegroundColor Gray
-# Restaurer le dualboot.cfg si existant, sinon mettre LANG selon choix utilisateur
 if ($savedCfg) {
     Set-Content -Path $existingCfg -Value $savedCfg -NoNewline
+    Log "Config precedente restauree"
     Write-Host "  Config precedente restauree" -ForegroundColor Gray
 } else {
-    # Mettre a jour LANG dans le nouveau dualboot.cfg selon le choix de langue
     $cfgContent = Get-Content $existingCfg -Raw
     $cfgContent = $cfgContent -replace '(?m)^LANG=.*$', "LANG=$INSTALL_LANG"
     Set-Content -Path $existingCfg -Value $cfgContent -NoNewline
+    Log "LANG=$INSTALL_LANG ecrit dans dualboot.cfg"
     Write-Host "  LANG=$INSTALL_LANG defini dans dualboot.cfg" -ForegroundColor Gray
 }
+Log "Copie autorun.inf"
 Copy-Item "$SRC_DUALBOOT\autorun.inf" "$SD\autorun.inf" -Force
 Write-Host "  DualBoot\autorun.inf -> $SD\autorun.inf" -ForegroundColor Gray
+Log "Etape 2 terminee"
 Write-Host "  OK" -ForegroundColor Green
 
 # =============================================================
 Write-Host ""
 Write-Host $L.step3 -ForegroundColor Yellow
-Copy-Item "$SRC_ONION\.tmp_update\updater" "$SD\.tmp_update\updater" -Force
+Log "--- ETAPE 3 : updater ---"
+$updaterSrc = "$SRC_ONION\.tmp_update\updater"
+if (Test-Path $updaterSrc) {
+    Copy-Item $updaterSrc "$SD\.tmp_update\updater" -Force
+    Log "updater copie depuis $updaterSrc"
+} else {
+    Log "updater introuvable dans $updaterSrc" "WARN"
+}
 Write-Host "  updater -> $SD\.tmp_update\updater" -ForegroundColor Gray
 Write-Host "  OK" -ForegroundColor Green
 
@@ -365,8 +435,12 @@ Write-Host "  OK" -ForegroundColor Green
 Write-Host ""
 Write-Host $L.step4 -ForegroundColor Yellow
 Write-Host $L.slowCopy -ForegroundColor Gray
+Log "--- ETAPE 4 : bin/ ---"
 New-Item -ItemType Directory -Force -Path "$SD\.tmp_update\bin" | Out-Null
+Log "Copie bin/ : $SRC_ONION_BIN -> $SD\.tmp_update\bin"
 Copy-Item "$SRC_ONION_BIN\*" "$SD\.tmp_update\bin\" -Recurse -Force
+$binCount = (Get-ChildItem "$SD\.tmp_update\bin" -Recurse -File).Count
+Log "bin/ copie : $binCount fichiers"
 Write-Host "  $SRC_ONION_BIN -> $SD\.tmp_update\bin\" -ForegroundColor Gray
 Write-Host "  OK" -ForegroundColor Green
 
@@ -374,8 +448,17 @@ Write-Host "  OK" -ForegroundColor Green
 Write-Host ""
 Write-Host $L.step5 -ForegroundColor Yellow
 Write-Host $L.slowCopy -ForegroundColor Gray
-New-Item -ItemType Directory -Force -Path "$SD\.tmp_update\lib" | Out-Null
-Copy-Item "$SRC_TELMIOS\.tmp_update\lib\*" "$SD\.tmp_update\lib\" -Recurse -Force
+Log "--- ETAPE 5 : lib/ ---"
+$libSrc = "$SRC_TELMIOS\.tmp_update\lib"
+if (-not (Test-Path $libSrc)) {
+    Log "lib/ introuvable dans TelmiOS : $libSrc" "ERROR"
+} else {
+    New-Item -ItemType Directory -Force -Path "$SD\.tmp_update\lib" | Out-Null
+    Log "Copie lib/ : $libSrc -> $SD\.tmp_update\lib"
+    Copy-Item "$libSrc\*" "$SD\.tmp_update\lib\" -Recurse -Force
+    $libCount = (Get-ChildItem "$SD\.tmp_update\lib" -Recurse -File).Count
+    Log "lib/ copie : $libCount fichiers"
+}
 Write-Host "  TelmiOS\.tmp_update\lib\ -> $SD\.tmp_update\lib\" -ForegroundColor Gray
 Write-Host "  OK" -ForegroundColor Green
 
@@ -383,10 +466,17 @@ Write-Host "  OK" -ForegroundColor Green
 Write-Host ""
 Write-Host "$($L.step6_pre) $SD\telmios\..." -ForegroundColor Yellow
 Write-Host $L.slowMinutes -ForegroundColor Gray
+Log "--- ETAPE 6 : TelmiOS ---"
 foreach ($t in @("$SD\Telmios","$SD\telmios")) {
-    if (Test-Path $t) { Remove-Item $t -Recurse -Force }
+    if (Test-Path $t) {
+        Log "Suppression ancien dossier : $t"
+        Remove-Item $t -Recurse -Force
+    }
 }
+Log "Copie TelmiOS : $SRC_TELMIOS -> $SD\telmios"
 Copy-Item "$SRC_TELMIOS" "$SD\telmios" -Recurse -Force
+$telmiCount = (Get-ChildItem "$SD\telmios" -Recurse -File).Count
+Log "TelmiOS copie : $telmiCount fichiers"
 Write-Host "  TelmiOS\ -> $SD\telmios\" -ForegroundColor Gray
 Write-Host "  OK" -ForegroundColor Green
 
@@ -394,42 +484,57 @@ Write-Host "  OK" -ForegroundColor Green
 Write-Host ""
 Write-Host "$($L.step7_pre) $SD\onion\..." -ForegroundColor Yellow
 Write-Host $L.slowMinutes -ForegroundColor Gray
-if (Test-Path "$SD\onion") { Remove-Item "$SD\onion" -Recurse -Force }
+Log "--- ETAPE 7 : OnionOS ---"
+if (Test-Path "$SD\onion") {
+    Log "Suppression ancien $SD\onion"
+    Remove-Item "$SD\onion" -Recurse -Force
+}
+Log "Copie OnionOS : $SRC_ONION -> $SD\onion"
 Copy-Item "$SRC_ONION" "$SD\onion" -Recurse -Force
+$onionCount = (Get-ChildItem "$SD\onion" -Recurse -File).Count
+Log "OnionOS copie : $onionCount fichiers"
 Write-Host "  OnionOS\ -> $SD\onion\" -ForegroundColor Gray
 Write-Host "  OK" -ForegroundColor Green
 
 # =============================================================
 Write-Host ""
 Write-Host $L.step8 -ForegroundColor Yellow
+Log "--- ETAPE 8 : Images menu ---"
 $pythonScript = "$SCRIPT_DIR\generate_bootmenu.py"
 if (-not (Test-Path $pythonScript)) {
+    Log "generate_bootmenu.py introuvable dans $SCRIPT_DIR" "WARN"
     Write-Host "  [IGNORE] generate_bootmenu.py introuvable dans $SCRIPT_DIR" -ForegroundColor Yellow
 } else {
-    # Verifier que Python est disponible
     $pythonCmd = $null
     foreach ($cmd in @("python", "python3")) {
         try {
             $ver = & $cmd --version 2>&1
-            if ($LASTEXITCODE -eq 0) { $pythonCmd = $cmd; break }
+            if ($LASTEXITCODE -eq 0) { $pythonCmd = $cmd; Log "Python trouve : $cmd ($ver)"; break }
         } catch {}
     }
     if (-not $pythonCmd) {
+        Log "Python non trouve sur le systeme" "WARN"
         Write-Host "  [IGNORE] Python non trouve. Installe Python 3 puis lance generate_bootmenu.py" -ForegroundColor Yellow
     } else {
-        # Installer Pillow si necessaire
         Write-Host "  Verification de Pillow..." -ForegroundColor Gray
         $pillowCheck = & $pythonCmd -c "import PIL" 2>&1
         if ($LASTEXITCODE -ne 0) {
+            Log "Pillow absent - installation..."
             Write-Host "  Installation de Pillow (pip install Pillow)..." -ForegroundColor Gray
-            & $pythonCmd -m pip install Pillow --quiet
+            $pipOut = & $pythonCmd -m pip install Pillow --quiet 2>&1
+            Log "pip output : $($pipOut -join ' | ')"
+        } else {
+            Log "Pillow deja installe"
         }
-        # Lancer le generateur avec le chemin de la SD
         Write-Host "  Generation des images RAW (FR/EN/ES)..." -ForegroundColor Gray
-        & $pythonCmd $pythonScript $SD
+        Log "Lancement generate_bootmenu.py $SD"
+        $pyOut = & $pythonCmd $pythonScript $SD 2>&1
+        Log "generate_bootmenu output : $($pyOut -join ' | ')"
         if ($LASTEXITCODE -eq 0) {
+            Log "Images generees avec succes"
             Write-Host "  OK - Images generees" -ForegroundColor Green
         } else {
+            Log "ERREUR generation images (code $LASTEXITCODE)" "ERROR"
             Write-Host "  ERREUR lors de la generation des images" -ForegroundColor Red
         }
     }
@@ -438,6 +543,7 @@ if (-not (Test-Path $pythonScript)) {
 # =============================================================
 Write-Host ""
 Write-Host $L.verif -ForegroundColor Yellow
+Log "--- VERIFICATION FINALE ---"
 
 $errors = 0
 $checks = @(
@@ -451,27 +557,30 @@ $checks = @(
 
 foreach ($check in $checks) {
     if (Test-Path $check) {
+        Log "OK : $check"
         Write-Host "  [OK] $check" -ForegroundColor Green
     } else {
+        Log "MANQUANT : $check" "ERROR"
         Write-Host "  [MANQUANT] $check" -ForegroundColor Red
         $errors++
     }
 }
 
-# OnionOS: runtime.sh est absent avant le premier demarrage (installe par install.sh au boot)
-# On verifie la presence de l'installeur ou du runtime
 if ((Test-Path "$SD\onion\miyoo\app\.tmp_update\install.sh") -or (Test-Path "$SD\onion\.tmp_update\runtime.sh")) {
+    Log "OK : onion/ pret"
     Write-Host "  [OK] $SD\onion\ (OnionOS pret)" -ForegroundColor Green
 } else {
+    Log "MANQUANT : onion/ absent ou incomplet" "ERROR"
     Write-Host "  [MANQUANT] $SD\onion\ - dossier OnionOS absent ou incomplet" -ForegroundColor Red
     $errors++
 }
 
-# Verifier les images du menu (au moins une langue)
 $hasImages = (Test-Path "$SD\.tmp_update\res\bootmenu_onion_FR.raw") -or (Test-Path "$SD\.tmp_update\res\bootmenu_onion.raw")
 if ($hasImages) {
+    Log "OK : images menu presentes"
     Write-Host "  [OK] Images menu .raw presentes" -ForegroundColor Green
 } else {
+    Log "MANQUANT : images menu .raw" "WARN"
     Write-Host "  [MANQUANT] Images menu .raw - lance generate_bootmenu.py avec la SD inseree" -ForegroundColor Yellow
 }
 
@@ -479,6 +588,7 @@ if ($hasImages) {
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
 if ($errors -eq 0) {
+    Log "=== INSTALLATION REUSSIE (0 erreur) ==="
     Write-Host $L.success -ForegroundColor Green
     Write-Host "========================================" -ForegroundColor Cyan
     Write-Host ""
@@ -490,10 +600,15 @@ if ($errors -eq 0) {
     Write-Host $L.confirm
     Write-Host $L.lastOS
 } else {
+    Log "=== INSTALLATION INCOMPLETE ($errors erreur(s)) ===" "ERROR"
     Write-Host "  $($L.warning) $errors $($L.missingFiles)" -ForegroundColor Red
     Write-Host "========================================" -ForegroundColor Cyan
     Write-Host $L.checkFolders
     Write-Host $L.checkSameDir
 }
+Write-Host ""
+Log "Log complet : $LOG_FILE"
+Write-Host $L.logSaved -ForegroundColor DarkGray
+Write-Host "  $LOG_FILE" -ForegroundColor DarkGray
 Write-Host ""
 Read-Host $L.pressEnter
