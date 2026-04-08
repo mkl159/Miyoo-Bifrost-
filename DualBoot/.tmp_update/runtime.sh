@@ -388,6 +388,18 @@ if [ "$SELECTION" = "onion" ]; then
     fi
 fi
 
+# ---- Installation premiere de OnionOS si necessaire ----
+if [ "$SELECTION" = "onion" ] && [ ! -f "/mnt/SDCARD/.tmp_update/runtime.sh" ] && [ -f "/mnt/SDCARD/.tmp_update/install.sh" ]; then
+    log "OnionOS: runtime.sh absent, lancement install.sh..."
+    export LD_LIBRARY_PATH="/lib:/config/lib:$miyoodir/lib:/mnt/SDCARD/.tmp_update/lib"
+    export PATH="/mnt/SDCARD/.tmp_update/bin:$sysdir/bin:$PATH"
+    unset SDL_VIDEODRIVER
+    unset SDL_AUDIODRIVER
+    unset EGL_VIDEODRIVER
+    cd /mnt/SDCARD/.tmp_update
+    exec ./install.sh
+fi
+
 # ---- Lancer l'OS cible ----
 TARGET="/mnt/SDCARD/.tmp_update/runtime.sh"
 if [ ! -f "$TARGET" ]; then

@@ -161,8 +161,20 @@ Write-Host "  OK" -ForegroundColor Green
 # =============================================================
 Write-Host ""
 Write-Host "ETAPE 2/8 - Installation du bootloader Bifrost..." -ForegroundColor Yellow
+# Sauvegarder le dualboot.cfg existant avant ecrasement
+$existingCfg = "$SD\.tmp_update\config\dualboot.cfg"
+$savedCfg = $null
+if (Test-Path $existingCfg) {
+    $savedCfg = Get-Content $existingCfg -Raw
+    Write-Host "  Config existante sauvegardee" -ForegroundColor Gray
+}
 Copy-Item "$SRC_DUALBOOT\.tmp_update" "$SD\.tmp_update" -Recurse -Force
 Write-Host "  Copie : DualBoot\.tmp_update\ -> $SD\.tmp_update\" -ForegroundColor Gray
+# Restaurer le dualboot.cfg si existant
+if ($savedCfg) {
+    Set-Content -Path $existingCfg -Value $savedCfg -NoNewline
+    Write-Host "  Config precedente restauree" -ForegroundColor Gray
+}
 Copy-Item "$SRC_DUALBOOT\autorun.inf" "$SD\autorun.inf" -Force
 Write-Host "  Copie : DualBoot\autorun.inf -> $SD\autorun.inf" -ForegroundColor Gray
 Write-Host "  OK" -ForegroundColor Green
