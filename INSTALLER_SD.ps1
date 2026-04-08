@@ -52,7 +52,7 @@ if (-not (Test-Path "$SD\")) {
 Write-Host "Cible    : $SD" -ForegroundColor Green
 Write-Host ""
 
-# --- Proposition de formatage FAT32 ---
+# --- Verification et formatage FAT32 ---
 $sdLetter = ($SD -replace ':\\.*', '').ToUpper()
 $vol = Get-Volume -DriveLetter $sdLetter -ErrorAction SilentlyContinue
 if ($vol) {
@@ -61,23 +61,38 @@ if ($vol) {
     Write-Host "Carte SD detectee : $sizeGB Go, format actuel : $currentFS" -ForegroundColor Cyan
     if ($currentFS -ne "FAT32") {
         Write-Host ""
-        Write-Host "  RECOMMANDATION : Le Miyoo fonctionne mieux en FAT32." -ForegroundColor Yellow
+        Write-Host "  !! ATTENTION : La carte n'est pas en FAT32 !!" -ForegroundColor Red
+        Write-Host "  Le firmware Miyoo ne supporte que FAT32 pour demarrer." -ForegroundColor Red
+        Write-Host "  Une carte exFAT ou NTFS ne bootera PAS." -ForegroundColor Red
+        Write-Host ""
         if ($sizeGB -le 32) {
-            $rep = Read-Host "  Formater la carte SD en FAT32 maintenant ? (O/N)"
+            $rep = Read-Host "  Formater en FAT32 maintenant ? (O=Oui, toutes les donnees seront effacees)"
             if ($rep -match "^[oOyY]") {
-                Write-Host "  Formatage en FAT32... (toutes les donnees seront effacees)" -ForegroundColor Red
+                Write-Host "  Formatage FAT32 en cours..." -ForegroundColor Yellow
                 Format-Volume -DriveLetter $sdLetter -FileSystem FAT32 -NewFileSystemLabel "MiyooBoot" -AllocationUnitSize 32768 -Confirm:$false -Force | Out-Null
-                Write-Host "  Format FAT32 OK" -ForegroundColor Green
+                Write-Host "  FAT32 OK !" -ForegroundColor Green
             } else {
-                Write-Host "  Formatage ignore - on continue avec $currentFS" -ForegroundColor Gray
+                Write-Host ""
+                Write-Host "  ARRET : Formate la carte en FAT32 avant de continuer." -ForegroundColor Red
+                Read-Host "  Appuie sur Entree pour quitter"
+                exit 1
             }
         } else {
-            Write-Host "  Carte > 32 Go : FAT32 non supporte par Windows au-dela de 32 Go." -ForegroundColor Yellow
-            Write-Host "  Utilise Rufus (https://rufus.ie) pour formater en FAT32 si besoin." -ForegroundColor Yellow
-            Write-Host "  On continue avec $currentFS..." -ForegroundColor Gray
+            Write-Host "  Carte de $sizeGB Go : Windows ne peut pas faire FAT32 au-dela de 32 Go." -ForegroundColor Red
+            Write-Host ""
+            Write-Host "  SOLUTION : Utilise RUFUS pour formater en FAT32 :" -ForegroundColor Yellow
+            Write-Host "    1. Telecharge Rufus sur https://rufus.ie" -ForegroundColor Yellow
+            Write-Host "    2. Selectionne ta carte SD" -ForegroundColor Yellow
+            Write-Host "    3. Systeme de fichiers : FAT32" -ForegroundColor Yellow
+            Write-Host "    4. Taille d'unite : 32 Ko" -ForegroundColor Yellow
+            Write-Host "    5. Clique sur Demarrer" -ForegroundColor Yellow
+            Write-Host "    6. Relance cet installateur" -ForegroundColor Yellow
+            Write-Host ""
+            Read-Host "  Appuie sur Entree pour quitter"
+            exit 1
         }
     } else {
-        Write-Host "  Deja en FAT32 - parfait !" -ForegroundColor Green
+        Write-Host "  FAT32 detecte - parfait !" -ForegroundColor Green
     }
     Write-Host ""
 }

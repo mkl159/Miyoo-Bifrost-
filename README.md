@@ -50,7 +50,9 @@ Un bootloader léger qui affiche un menu graphique au démarrage pour choisir en
 ## Prérequis
 
 - PC Windows
-- Carte SD (32 Go recommandé) — FAT32 ≤ 32 Go, exFAT > 32 Go
+- Carte SD formatée en **FAT32** (obligatoire — le firmware Miyoo ne supporte pas exFAT)
+  - Carte **≤ 32 Go** : Windows peut formater directement en FAT32
+  - Carte **> 32 Go** : utilise **[Rufus](https://rufus.ie)** → FAT32, taille d'unité 32 Ko
 - **OnionOS** : [github.com/OnionUI/Onion](https://github.com/OnionUI/Onion)
 - **TelmiOS** : [github.com/telmios/telmios](https://github.com/telmios/telmios)
 - Python 3 + Pillow (`pip install Pillow`) — pour générer les images du menu
@@ -98,18 +100,22 @@ Python est nécessaire pour générer les images du menu de boot. L'installateur
 
 ---
 
-### Étape 2 — Formater la carte SD
+### Étape 2 — Formater la carte SD en FAT32
 
 > ⚠️ **SAUVEGARDE tes ROMs et sauvegardes avant !** Le formatage efface tout.
 
-1. Insère ta carte SD dans ton PC
-2. Ouvre l'**Explorateur de fichiers** (touche `Windows + E`)
-3. Fais un **clic droit** sur la carte SD → **Formater...**
-4. Choisis le système de fichiers :
-   - Carte SD **≤ 32 Go** → sélectionne **FAT32**, taille d'unité **32 Ko**
-   - Carte SD **> 32 Go** → sélectionne **exFAT**, taille d'unité **32 Ko**
-5. Clique **Démarrer** puis confirme
-6. Note la lettre de ta carte SD (ex: `E:`)
+> ❗ **FAT32 est obligatoire.** Le firmware interne du Miyoo ne supporte pas exFAT — une carte exFAT ne bootera pas.
+
+**Carte ≤ 32 Go** — Formatage Windows :
+1. Clic droit sur la carte SD → **Formater...**
+2. Système de fichiers : **FAT32**, taille d'unité : **32 Ko**
+3. Clique **Démarrer**
+
+**Carte > 32 Go** — Windows ne peut pas faire FAT32 au-delà de 32 Go, utilise **Rufus** :
+1. Télécharge **[Rufus](https://rufus.ie)** (gratuit)
+2. Sélectionne ta carte SD
+3. Système de fichiers : **FAT32**, taille d'unité : **32 Ko**
+4. Clique **Démarrer**
 
 ---
 
