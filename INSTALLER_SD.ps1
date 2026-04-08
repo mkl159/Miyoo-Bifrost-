@@ -65,29 +65,25 @@ if ($vol) {
         Write-Host "  Le firmware Miyoo ne supporte que FAT32 pour demarrer." -ForegroundColor Red
         Write-Host "  Une carte exFAT ou NTFS ne bootera PAS." -ForegroundColor Red
         Write-Host ""
-        if ($sizeGB -le 32) {
-            $rep = Read-Host "  Formater en FAT32 maintenant ? (O=Oui, toutes les donnees seront effacees)"
-            if ($rep -match "^[oOyY]") {
-                Write-Host "  Formatage FAT32 en cours..." -ForegroundColor Yellow
-                Format-Volume -DriveLetter $sdLetter -FileSystem FAT32 -NewFileSystemLabel "MiyooBoot" -AllocationUnitSize 32768 -Confirm:$false -Force | Out-Null
+        $rep = Read-Host "  Formater en FAT32 maintenant ? (O=Oui, toutes les donnees seront effacees)"
+        if ($rep -match "^[oOyY]") {
+            Write-Host "  Formatage FAT32 en cours (peut prendre quelques minutes)..." -ForegroundColor Yellow
+            # diskpart supporte FAT32 quelle que soit la taille (contrairement a format.com)
+            $dpScript = "select volume $sdLetter`r`nformat fs=fat32 label=MiyooBoot quick`r`nexit"
+            $dpScript | diskpart | Out-Null
+            # Verifier que ca a fonctionne
+            $volAfter = Get-Volume -DriveLetter $sdLetter -ErrorAction SilentlyContinue
+            if ($volAfter -and $volAfter.FileSystem -eq "FAT32") {
                 Write-Host "  FAT32 OK !" -ForegroundColor Green
             } else {
-                Write-Host ""
-                Write-Host "  ARRET : Formate la carte en FAT32 avant de continuer." -ForegroundColor Red
+                Write-Host "  ECHEC du formatage automatique." -ForegroundColor Red
+                Write-Host "  Utilise Rufus manuellement : https://rufus.ie (FAT32, 32 Ko)" -ForegroundColor Yellow
                 Read-Host "  Appuie sur Entree pour quitter"
                 exit 1
             }
         } else {
-            Write-Host "  Carte de $sizeGB Go : Windows ne peut pas faire FAT32 au-dela de 32 Go." -ForegroundColor Red
             Write-Host ""
-            Write-Host "  SOLUTION : Utilise RUFUS pour formater en FAT32 :" -ForegroundColor Yellow
-            Write-Host "    1. Telecharge Rufus sur https://rufus.ie" -ForegroundColor Yellow
-            Write-Host "    2. Selectionne ta carte SD" -ForegroundColor Yellow
-            Write-Host "    3. Systeme de fichiers : FAT32" -ForegroundColor Yellow
-            Write-Host "    4. Taille d'unite : 32 Ko" -ForegroundColor Yellow
-            Write-Host "    5. Clique sur Demarrer" -ForegroundColor Yellow
-            Write-Host "    6. Relance cet installateur" -ForegroundColor Yellow
-            Write-Host ""
+            Write-Host "  ARRET : Formate la carte en FAT32 avant de continuer." -ForegroundColor Red
             Read-Host "  Appuie sur Entree pour quitter"
             exit 1
         }
