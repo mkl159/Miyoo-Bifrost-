@@ -123,10 +123,10 @@ show_menu() {
     local img_lang="$sysdir/res/bootmenu_${name}_${LANG}.raw"
     local img_default="$sysdir/res/bootmenu_${name}.raw"
     if [ -f "$img_lang" ]; then
-        dd if="$img_lang" of=/dev/fb0 bs=4096 2>/dev/null
+        dd if="$img_lang" of=/dev/fb0 bs=4096 2>/dev/null && sync
         log "show_menu $name [$LANG]: OK"
     elif [ -f "$img_default" ]; then
-        dd if="$img_default" of=/dev/fb0 bs=4096 2>/dev/null
+        dd if="$img_default" of=/dev/fb0 bs=4096 2>/dev/null && sync
         log "show_menu $name [fallback]: OK"
     else
         log "show_menu $name: MISSING ($img_lang)"
@@ -135,7 +135,13 @@ show_menu() {
 
 log "fb0 bits=$(cat /sys/class/graphics/fb0/bits_per_pixel 2>/dev/null)"
 
+# ---- Attendre que le backlight soit pret (PWM peut prendre jusqu'a 2s) ----
+sleep 1.5
+
 # ---- Afficher menu initial ----
+show_menu "$SELECTION"
+# Second affichage 0.5s plus tard au cas ou le backlight finit de s'initialiser
+sleep 0.5
 show_menu "$SELECTION"
 
 # ---- Demarrer lecteurs de touches ----
