@@ -5,6 +5,13 @@
 # =============================================================
 
 $ErrorActionPreference = "Stop"
+
+# --- Auto-elevation administrateur (requis pour diskpart) ---
+if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")) {
+    Start-Process powershell.exe "-ExecutionPolicy Bypass -File `"$($MyInvocation.MyCommand.Path)`"" -Verb RunAs
+    exit
+}
+
 Add-Type -AssemblyName System.Windows.Forms
 
 Write-Host ""
