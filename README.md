@@ -27,6 +27,16 @@ Un bootloader léger qui affiche un menu graphique au démarrage pour choisir en
 |---|---|
 | ![Locked Onion](preview/bootmenu_locked_onion_FR.png) | ![Locked TelmiOS](preview/bootmenu_locked_telmios_FR.png) |
 
+**Menu de configuration (SELECT)**
+
+| Code admin | Menu principal | Verrouillage OS |
+|---|---|---|
+| ![Config access](preview/bootmenu_config_access_FR.png) | ![Config main](preview/bootmenu_config_main_0_FR.png) | ![Config protect](preview/bootmenu_config_protect_0_FR.png) |
+
+| Vibrations | Saisie de séquence | Sauvegardé |
+|---|---|---|
+| ![Config vib](preview/bootmenu_config_vib_2_FR.png) | ![Config pw entry](preview/bootmenu_config_pw_entry_FR.png) | ![Config saved](preview/bootmenu_config_saved_FR.png) |
+
 ---
 
 ## Fonctionnalités

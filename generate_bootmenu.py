@@ -948,6 +948,13 @@ def main():
             nb = save_raw(img, raw_path)
             print(f"     {raw_name} ({nb} octets)")
 
+            # PNG de preview (FR uniquement, dans preview/)
+            if lang == "FR":
+                preview_dir = os.path.join(OUTPUT_DIR, "preview")
+                os.makedirs(preview_dir, exist_ok=True)
+                png_path = os.path.join(preview_dir, f"bootmenu_{name}_FR.png")
+                img.save(png_path, "PNG", optimize=True)
+
     print(f"\n{'='*56}")
     print("TERMINE !")
     if SD_RES != OUTPUT_DIR:
