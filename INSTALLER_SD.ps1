@@ -480,6 +480,36 @@ Log "TelmiOS copie : $telmiCount fichiers"
 Write-Host "  TelmiOS\ -> $SD\telmios\" -ForegroundColor Gray
 Write-Host "  OK" -ForegroundColor Green
 
+# --- Telmi-Sync : Stories / Saves / Music doivent etre a la racine ---
+# Telmi-Sync lit/ecrit Stories et Saves directement a la racine de la SD.
+# Le runtime.sh ne bind-monte un dossier de telmios/ que s'il existe :
+# en le retirant de telmios/, TelmiOS lira automatiquement la racine.
+Log "--- Telmi-Sync : deplacement Stories/Saves/Music vers racine ---"
+Write-Host "  [Telmi-Sync] Placement des donnees a la racine..." -ForegroundColor Gray
+foreach ($datadir in @("Stories", "Saves", "Music")) {
+    $srcDir = "$SD\telmios\$datadir"
+    $dstDir = "$SD\$datadir"
+    if (Test-Path $srcDir) {
+        if (Test-Path $dstDir) {
+            # La racine a deja ce dossier (ex : histoires existantes) - on garde la racine
+            Remove-Item $srcDir -Recurse -Force
+            Log "telmios\$datadir supprime (racine\$datadir deja presente - donnees preservees)"
+        } else {
+            Move-Item $srcDir $dstDir -Force
+            Log "Deplace telmios\$datadir -> racine\$datadir"
+            Write-Host "  [Telmi-Sync] telmios\$datadir\ -> \$datadir\" -ForegroundColor Gray
+        }
+    }
+}
+# S'assurer que Saves/.parameters existe (Telmi-Sync en a besoin pour detecter la carte)
+if (-not (Test-Path "$SD\Saves")) { New-Item -ItemType Directory -Force -Path "$SD\Saves" | Out-Null }
+if (-not (Test-Path "$SD\Saves\.parameters")) {
+    Set-Content -Path "$SD\Saves\.parameters" -Value "{}" -Encoding ASCII -NoNewline
+    Log "Saves\.parameters cree (defaut)"
+    Write-Host "  [Telmi-Sync] Saves\.parameters cree" -ForegroundColor Gray
+}
+Log "Telmi-Sync prep terminee"
+
 # =============================================================
 Write-Host ""
 Write-Host "$($L.step7_pre) $SD\onion\..." -ForegroundColor Yellow
