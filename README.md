@@ -39,6 +39,8 @@ Un bootloader léger qui affiche un menu graphique au démarrage pour choisir en
 - **3 langues** : Français, English, Español — menu et installateur traduits
 - **Compatibilité** Miyoo Mini (283) et Miyoo Mini Plus (354) — image pivotée 180° automatiquement pour MM
 - **Protection parentale** : code secret par séquence de boutons, configurable par OS (optionnel)
+- **Menu de configuration sur la console** : accessible via SELECT, protégé par code admin — modifie verrouillage, codes et vibrations directement depuis la Miyoo
+- **Compatible Telmi-Sync** : les histoires, sauvegardes et musiques sont accessibles depuis l'application Telmi-Sync sans reformater la carte
 - **Configuration** par fichier texte simple sur la SD — aucun accès PC requis après installation
 - **Installateur automatique** PowerShell — formate la SD en FAT32, copie tout, génère les images
 
@@ -192,6 +194,7 @@ Windows refuse de formater en FAT32 les cartes > 32 Go via son interface graphiq
 | **► Droite** | Passer sur TelmiOS |
 | **A** | Confirmer et lancer l'OS sélectionné |
 | **B** | Lancer directement le dernier OS utilisé (sans confirmer) |
+| **SELECT** | Ouvrir le menu de configuration (code requis) |
 | *(60 secondes sans action)* | Lance automatiquement le dernier OS mémorisé |
 
 Le choix est **mémorisé automatiquement** — au prochain démarrage, le dernier OS utilisé est présélectionné.
@@ -210,13 +213,34 @@ VIBRATION_CONFIRM=100            # durée en ms lors de la confirmation
 
 PASSWORD_PROTECT=none            # none / onion / telmios / both
 PASSWORD_SEQUENCE="UP UP DOWN DOWN A"   # séquence de boutons pour le code
+
+CONFIG_SEQUENCE="UP UP DOWN DOWN"       # code secret du menu de configuration
 ```
 
 > ⚠️ **Important** : Ne supprime pas les lignes commençant par `#` — ce sont des commentaires. Modifie uniquement la valeur à droite du `=`.
 
+### Menu de configuration (sur la console)
+
+Il est possible de configurer Bifrost **directement depuis la Miyoo**, sans accès au PC :
+
+1. Dans le menu de boot, appuie sur **SELECT**
+2. Entre le **code administrateur** (défaut : `UP UP DOWN DOWN`) puis **A**
+3. Navigue avec **Haut/Bas**, confirme avec **A**, retour avec **B**
+
+| Option | Description |
+|---|---|
+| Verrouillage OS | Choisir quel OS nécessite un code (aucun / OnionOS / TelmiOS / les deux) |
+| Code de verrouillage | Modifier la séquence secrète de déverrouillage |
+| Code administrateur | Modifier le code d'accès à ce menu de configuration |
+| Vibrations | Choisir l'intensité : Désactivée / Faible / Moyenne / Forte |
+| Sauvegarder et quitter | Enregistre les changements dans `dualboot.cfg` |
+| Annuler | Quitte sans sauvegarder |
+
+> Les boutons utilisables dans les séquences : `UP DOWN LEFT RIGHT X Y L1 R1 START`
+
 ### Protection parentale
 
-1. Ouvre `SD:\.tmp_update\config\dualboot.cfg` dans un éditeur texte
+1. Ouvre `SD:\.tmp_update\config\dualboot.cfg` dans un éditeur texte (ou utilise le menu SELECT sur la console)
 2. Change `PASSWORD_PROTECT=none` en :
    - `PASSWORD_PROTECT=onion` → protège l'accès à OnionOS
    - `PASSWORD_PROTECT=telmios` → protège l'accès à TelmiOS
@@ -225,6 +249,16 @@ PASSWORD_SEQUENCE="UP UP DOWN DOWN A"   # séquence de boutons pour le code
    - Boutons disponibles : `UP DOWN LEFT RIGHT A B X Y L R START SELECT`
 
 Au démarrage, si l'OS protégé est sélectionné, un écran cadenas apparaît. Entre la séquence définie dans `PASSWORD_SEQUENCE`. Appuie sur **B** pour annuler et revenir au menu.
+
+### Compatibilité Telmi-Sync
+
+Depuis la **v1.1.0**, la carte SD est pleinement reconnue par **Telmi-Sync** (l'application Windows de gestion des histoires TelmiOS) :
+
+- Les dossiers `Stories/`, `Saves/` et `Music/` sont placés **à la racine** de la SD
+- Telmi-Sync peut ajouter/supprimer des histoires sans reformater la carte
+- TelmiOS accède à ces dossiers transparemment via le système de bind mounts
+
+> Pour mettre à jour les histoires : branche la SD au PC, ouvre Telmi-Sync — la carte est automatiquement reconnue.
 
 ---
 
@@ -298,6 +332,8 @@ A lightweight bootloader that displays a graphical menu at startup to choose bet
 - **3 languages**: Français, English, Español — both menu and installer are translated
 - **Compatibility** with Miyoo Mini (283) and Miyoo Mini Plus (354) — image auto-rotated 180° for MM
 - **Parental lock**: secret button sequence, configurable per OS (optional)
+- **On-device config menu**: accessible via SELECT, protected by admin code — change lock settings, codes and vibration directly from the Miyoo
+- **Telmi-Sync compatible**: stories, saves and music are accessible from the Telmi-Sync app without reformatting the card
 - **Configuration** via simple text file on SD — no PC needed after installation
 - **Automatic installer** in PowerShell — formats SD to FAT32, copies everything, generates images
 
@@ -451,6 +487,7 @@ Windows refuses to format cards > 32 GB as FAT32 through its GUI. Use **[Rufus](
 | **► Right** | Switch to TelmiOS |
 | **A** | Confirm and launch selected OS |
 | **B** | Directly launch the last used OS (skip menu) |
+| **SELECT** | Open configuration menu (code required) |
 | *(60 seconds with no input)* | Automatically launches the last remembered OS |
 
 The choice is **automatically remembered** — on next startup the last used OS is pre-selected.
@@ -468,14 +505,35 @@ VIBRATION_SELECT=60              # duration in ms when switching OS
 VIBRATION_CONFIRM=100            # duration in ms when confirming
 
 PASSWORD_PROTECT=none            # none / onion / telmios / both
-PASSWORD_SEQUENCE="UP UP DOWN DOWN A"   # button sequence for the code
+PASSWORD_SEQUENCE="UP UP DOWN DOWN A"   # button sequence for the lock code
+
+CONFIG_SEQUENCE="UP UP DOWN DOWN"       # secret code for the config menu
 ```
 
 > ⚠️ **Important**: Do not delete lines starting with `#` — these are comments. Only change the value to the right of `=`.
 
+### On-device Configuration Menu
+
+You can configure Bifrost **directly from the Miyoo**, without a PC:
+
+1. In the boot menu, press **SELECT**
+2. Enter the **admin code** (default: `UP UP DOWN DOWN`) then **A**
+3. Navigate with **Up/Down**, confirm with **A**, go back with **B**
+
+| Option | Description |
+|---|---|
+| OS Lock | Choose which OS requires a code (none / OnionOS / TelmiOS / both) |
+| Lock code | Change the secret unlock sequence |
+| Admin code | Change the access code for this config menu |
+| Vibrations | Choose intensity: Disabled / Light / Medium / Strong |
+| Save and exit | Save changes to `dualboot.cfg` |
+| Cancel | Exit without saving |
+
+> Buttons allowed in sequences: `UP DOWN LEFT RIGHT X Y L1 R1 START`
+
 ### Parental Lock
 
-1. Open `SD:\.tmp_update\config\dualboot.cfg` in a text editor
+1. Open `SD:\.tmp_update\config\dualboot.cfg` in a text editor (or use the SELECT menu on the console)
 2. Change `PASSWORD_PROTECT=none` to:
    - `PASSWORD_PROTECT=onion` → locks access to OnionOS
    - `PASSWORD_PROTECT=telmios` → locks access to TelmiOS
@@ -484,6 +542,16 @@ PASSWORD_SEQUENCE="UP UP DOWN DOWN A"   # button sequence for the code
    - Available buttons: `UP DOWN LEFT RIGHT A B X Y L R START SELECT`
 
 At startup, if the locked OS is selected, a lock screen appears. Enter the sequence defined in `PASSWORD_SEQUENCE`. Press **B** to cancel and return to the menu.
+
+### Telmi-Sync Compatibility
+
+Since **v1.2.0**, the SD card is fully recognized by **Telmi-Sync** (the Windows story management app for TelmiOS):
+
+- The `Stories/`, `Saves/` and `Music/` folders are placed **at the SD root**
+- Telmi-Sync can add/remove stories without reformatting the card
+- TelmiOS accesses these folders transparently via the bind mount system
+
+> To update stories: plug the SD into your PC, open Telmi-Sync — the card is automatically recognized.
 
 ---
 

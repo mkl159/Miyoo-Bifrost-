@@ -33,6 +33,7 @@ if [ -f "$CONFIG" ]; then
 else
     log "Config manquant ($CONFIG) - valeurs par defaut"
 fi
+CONFIG_SEQUENCE="${CONFIG_SEQUENCE:-UP UP DOWN DOWN}"
 
 # ---- Detecter modele ----
 axp 0 > /dev/null 2>&1
@@ -105,6 +106,323 @@ vibrate() {
     echo 0 > /sys/class/gpio/gpio48/value 2>/dev/null
     sleep $(awk "BEGIN { printf \"%.3f\", $effective / 1000 }" 2>/dev/null)
     echo 1 > /sys/class/gpio/gpio48/value 2>/dev/null
+}
+
+# ============================================================
+#  MENU DE CONFIGURATION (acces par SELECT dans le menu boot)
+# ============================================================
+
+# Normalise un keycode (variantes -> code canonique)
+_norm_key() {
+    case "$1" in
+        305|315) echo 28  ;;   # BTN_B/START agissent comme A dans les sous-menus
+        1|304)   echo 14  ;;   # variantes de B
+        57|97)   echo 57  ;;   # SELECT : garde tel quel (pas normalise en A)
+        *)       echo "$1" ;;
+    esac
+}
+
+# Converti CONFIG_SEQUENCE (noms de boutons) en codes numeriques
+_cfg_to_codes() {
+    local _r=""
+    for _b in $CONFIG_SEQUENCE; do
+        case "$_b" in
+            UP)     _r="$_r 103" ;; DOWN)   _r="$_r 108" ;;
+            LEFT)   _r="$_r 105" ;; RIGHT)  _r="$_r 106" ;;
+            A)      _r="$_r 28"  ;; B)      _r="$_r 14"  ;;
+            X)      _r="$_r 33"  ;; Y)      _r="$_r 21"  ;;
+            L|L1)   _r="$_r 310" ;; R|R1)   _r="$_r 311" ;;
+            START)  _r="$_r 315" ;; SELECT) _r="$_r 314" ;;
+        esac
+    done
+    echo $_r
+}
+
+# Converti une suite de codes en noms de boutons
+_codes_to_names() {
+    local _r=""
+    for _c in $@; do
+        case "$_c" in
+            103) _r="$_r UP"     ;; 108) _r="$_r DOWN"   ;;
+            105) _r="$_r LEFT"   ;; 106) _r="$_r RIGHT"  ;;
+            28)  _r="$_r A"      ;; 14)  _r="$_r B"      ;;
+            33)  _r="$_r X"      ;; 21)  _r="$_r Y"      ;;
+            310) _r="$_r L1"     ;; 311) _r="$_r R1"     ;;
+            315) _r="$_r START"  ;; 314) _r="$_r SELECT" ;;
+        esac
+    done
+    echo $_r
+}
+
+# Sauvegarde la configuration courante dans dualboot.cfg
+do_save_config() {
+    {
+        echo "# DualBoot Configuration - sauvegardee par le menu Bifrost"
+        echo "LANG=$LANG"
+        echo "VIBRATION_POWER=$VIBRATION_POWER"
+        echo "VIBRATION_SELECT=$VIBRATION_SELECT"
+        echo "VIBRATION_CONFIRM=$VIBRATION_CONFIRM"
+        echo "PASSWORD_PROTECT=$PASSWORD_PROTECT"
+        echo "PASSWORD_SEQUENCE=\"$PASSWORD_SEQUENCE\""
+        echo "CONFIG_SEQUENCE=\"$CONFIG_SEQUENCE\""
+    } > "$CONFIG"
+    sync
+    log "Config saved: PP=$PASSWORD_PROTECT VP=$VIBRATION_POWER PW='$PASSWORD_SEQUENCE' CS='$CONFIG_SEQUENCE'"
+}
+
+# Attend une touche dans KEY_FILE
+# $1 = timeout en unites de 0.1s (defaut 300 = 30s)
+_wait_cfg_key() {
+    local _t=0 _max="${1:-300}"
+    while [ $_t -lt $_max ]; do
+        if [ -s "$KEY_FILE" ]; then
+            tail -1 "$KEY_FILE" 2>/dev/null
+            > "$KEY_FILE"
+            return 0
+        fi
+        sleep 0.1
+        _t=$((_t+1))
+    done
+    return 1
+}
+
+# Affiche config_access, attend la sequence admin
+# Retourne 0 si correct, 1 sinon/timeout/annule
+check_config_access() {
+    show_menu "config_access"
+    > "$KEY_FILE"
+
+    local _expected
+    _expected=$(_cfg_to_codes)
+    local _elen
+    _elen=$(echo $_expected | wc -w)
+
+    [ "$_elen" -eq 0 ] && { vibrate 80; return 0; }
+
+    local _pressed="" _pcount=0 _idle=0
+
+    while [ $_pcount -lt $_elen ] && [ $_idle -lt 300 ]; do
+        local _raw
+        _raw=$(_wait_cfg_key 1)
+        if [ -z "$_raw" ]; then
+            _idle=$((_idle+1))
+            continue
+        fi
+        _idle=0
+        local _k
+        _k=$(_norm_key "$_raw")
+        case "$_k" in
+            14) log "Config access: annule (B)"; vibrate 100; return 1 ;;
+            28) ;;
+            *)  _pressed="$_pressed $_k"
+                _pcount=$((_pcount+1))
+                vibrate 25
+                log "Config access: $_pcount/$_elen k=$_k" ;;
+        esac
+    done
+
+    _pressed=$(echo $_pressed)
+    log "Config access: pressed='$_pressed' expected='$_expected'"
+
+    if [ "$_pressed" = "$_expected" ]; then
+        vibrate 150; return 0
+    else
+        vibrate 200; sleep 0.12; vibrate 200; return 1
+    fi
+}
+
+# Sous-menu : choix du mode de verrouillage (modifie PASSWORD_PROTECT)
+cfg_set_protect() {
+    local _idx=0
+    case "$PASSWORD_PROTECT" in
+        none)    _idx=0 ;; onion)   _idx=1 ;;
+        telmios) _idx=2 ;; both)    _idx=3 ;;
+    esac
+
+    show_menu "config_protect_${_idx}"
+    > "$KEY_FILE"
+
+    while true; do
+        local _raw _k
+        _raw=$(_wait_cfg_key 1) || continue
+        _k=$(_norm_key "$_raw")
+        case "$_k" in
+            105) _idx=$(( (_idx-1+4) % 4 ))
+                 show_menu "config_protect_${_idx}"
+                 vibrate "$VIBRATION_SELECT" ;;
+            106) _idx=$(( (_idx+1) % 4 ))
+                 show_menu "config_protect_${_idx}"
+                 vibrate "$VIBRATION_SELECT" ;;
+            28)  case $_idx in
+                     0) PASSWORD_PROTECT="none"    ;;
+                     1) PASSWORD_PROTECT="onion"   ;;
+                     2) PASSWORD_PROTECT="telmios" ;;
+                     3) PASSWORD_PROTECT="both"    ;;
+                 esac
+                 vibrate "$VIBRATION_CONFIRM"
+                 log "Config: protect=$PASSWORD_PROTECT"; return ;;
+            14)  return ;;
+        esac
+    done
+}
+
+# Sous-menu : intensite des vibrations (modifie VIBRATION_POWER/SELECT/CONFIRM)
+cfg_set_vibration() {
+    local _idx=2
+    if [ "$VIBRATION_POWER" -eq 0 ] 2>/dev/null; then
+        _idx=0
+    elif [ "$VIBRATION_POWER" -le 20 ] 2>/dev/null; then
+        _idx=1
+    elif [ "$VIBRATION_POWER" -le 35 ] 2>/dev/null; then
+        _idx=2
+    else
+        _idx=3
+    fi
+
+    local _op="$VIBRATION_POWER" _os="$VIBRATION_SELECT" _oc="$VIBRATION_CONFIRM"
+
+    show_menu "config_vib_${_idx}"
+    > "$KEY_FILE"
+
+    while true; do
+        local _raw _k
+        _raw=$(_wait_cfg_key 1) || continue
+        _k=$(_norm_key "$_raw")
+        case "$_k" in
+            105) _idx=$(( (_idx-1+4) % 4 ))
+                 show_menu "config_vib_${_idx}"
+                 case $_idx in
+                     0) VIBRATION_POWER=0;  VIBRATION_SELECT=0;   VIBRATION_CONFIRM=0   ;;
+                     1) VIBRATION_POWER=15; VIBRATION_SELECT=40;  VIBRATION_CONFIRM=80  ;;
+                     2) VIBRATION_POWER=25; VIBRATION_SELECT=60;  VIBRATION_CONFIRM=100 ;;
+                     3) VIBRATION_POWER=50; VIBRATION_SELECT=100; VIBRATION_CONFIRM=200 ;;
+                 esac
+                 [ "$VIBRATION_POWER" -gt 0 ] && vibrate "$VIBRATION_SELECT" ;;
+            106) _idx=$(( (_idx+1) % 4 ))
+                 show_menu "config_vib_${_idx}"
+                 case $_idx in
+                     0) VIBRATION_POWER=0;  VIBRATION_SELECT=0;   VIBRATION_CONFIRM=0   ;;
+                     1) VIBRATION_POWER=15; VIBRATION_SELECT=40;  VIBRATION_CONFIRM=80  ;;
+                     2) VIBRATION_POWER=25; VIBRATION_SELECT=60;  VIBRATION_CONFIRM=100 ;;
+                     3) VIBRATION_POWER=50; VIBRATION_SELECT=100; VIBRATION_CONFIRM=200 ;;
+                 esac
+                 [ "$VIBRATION_POWER" -gt 0 ] && vibrate "$VIBRATION_SELECT" ;;
+            28)  case $_idx in
+                     0) VIBRATION_POWER=0;  VIBRATION_SELECT=0;   VIBRATION_CONFIRM=0   ;;
+                     1) VIBRATION_POWER=15; VIBRATION_SELECT=40;  VIBRATION_CONFIRM=80  ;;
+                     2) VIBRATION_POWER=25; VIBRATION_SELECT=60;  VIBRATION_CONFIRM=100 ;;
+                     3) VIBRATION_POWER=50; VIBRATION_SELECT=100; VIBRATION_CONFIRM=200 ;;
+                 esac
+                 [ "$VIBRATION_POWER" -gt 0 ] && vibrate "$VIBRATION_CONFIRM"
+                 log "Config: vib preset=$_idx power=$VIBRATION_POWER"; return ;;
+            14)  VIBRATION_POWER="$_op"; VIBRATION_SELECT="$_os"; VIBRATION_CONFIRM="$_oc"
+                 return ;;
+        esac
+    done
+}
+
+# Saisie d'une nouvelle sequence de boutons
+# $1 : nom de l'image a afficher
+# Ecrit le resultat dans NEW_CFG_SEQUENCE (noms boutons)
+# Retourne 0 si valide, 1 si annule/vide
+cfg_enter_sequence() {
+    show_menu "$1"
+    > "$KEY_FILE"
+    NEW_CFG_SEQUENCE=""
+
+    local _codes="" _count=0
+
+    while [ $_count -lt 8 ]; do
+        local _raw _k
+        _raw=$(_wait_cfg_key 1) || continue
+        _k=$(_norm_key "$_raw")
+        case "$_k" in
+            14)  return 1 ;;
+            28)  break    ;;
+            103|108|105|106|310|311|33|21|315)
+                _codes="$_codes $_k"
+                _count=$((_count+1))
+                vibrate 25 ;;
+        esac
+    done
+
+    [ $_count -eq 0 ] && return 1
+    NEW_CFG_SEQUENCE=$(_codes_to_names $_codes)
+    log "New sequence entered: '$NEW_CFG_SEQUENCE' (${_count} boutons)"
+    return 0
+}
+
+# Menu de configuration principal (6 items)
+run_config_menu() {
+    log "=== Config menu ==="
+    local _item=0 _max=6 _modified=0
+
+    show_menu "config_main_${_item}"
+    > "$KEY_FILE"
+
+    while true; do
+        local _raw _k
+        _raw=$(_wait_cfg_key 1) || continue
+        _k=$(_norm_key "$_raw")
+
+        case "$_k" in
+            103)  # UP
+                _item=$(( (_item-1+_max) % _max ))
+                show_menu "config_main_${_item}"
+                vibrate "$VIBRATION_SELECT" ;;
+            108)  # DOWN
+                _item=$(( (_item+1) % _max ))
+                show_menu "config_main_${_item}"
+                vibrate "$VIBRATION_SELECT" ;;
+            28)   # A = selectionner
+                case $_item in
+                    0)  cfg_set_protect
+                        _modified=1 ;;
+                    1)  if cfg_enter_sequence "config_pw_entry" && [ -n "$NEW_CFG_SEQUENCE" ]; then
+                            PASSWORD_SEQUENCE="$NEW_CFG_SEQUENCE"
+                            _modified=1
+                            vibrate "$VIBRATION_CONFIRM"
+                            log "Config: PASSWORD_SEQUENCE='$PASSWORD_SEQUENCE'"
+                        fi ;;
+                    2)  if cfg_enter_sequence "config_cfg_entry" && [ -n "$NEW_CFG_SEQUENCE" ]; then
+                            CONFIG_SEQUENCE="$NEW_CFG_SEQUENCE"
+                            _modified=1
+                            vibrate "$VIBRATION_CONFIRM"
+                            log "Config: CONFIG_SEQUENCE='$CONFIG_SEQUENCE'"
+                        fi ;;
+                    3)  cfg_set_vibration
+                        _modified=1 ;;
+                    4)  # Sauvegarder et quitter
+                        do_save_config
+                        show_menu "config_saved"
+                        sleep 2
+                        log "Config: sauvegarde et sortie"
+                        return ;;
+                    5)  # Quitter sans sauvegarder
+                        [ "$_modified" -eq 1 ] && . "$CONFIG" 2>/dev/null
+                        log "Config: sortie sans sauvegarde"
+                        return ;;
+                esac
+                show_menu "config_main_${_item}" ;;
+            14)   # B = quitter sans sauvegarder
+                [ "$_modified" -eq 1 ] && . "$CONFIG" 2>/dev/null
+                log "Config: B - sortie sans sauvegarde"
+                return ;;
+        esac
+    done
+}
+
+# Point d'entree : verif code puis menu config
+enter_config_mode() {
+    > "$KEY_FILE"
+    if check_config_access; then
+        run_config_menu
+    else
+        log "Config: acces refuse (mauvais code)"
+    fi
+    show_menu "$SELECTION"
+    > "$KEY_FILE"
+    log "Config mode termine"
 }
 
 # ---- Choix initial ----
@@ -187,7 +505,7 @@ while [ $COUNTER -lt $TIMEOUT ]; do
         case "$KEY" in
             105|310) SELECTION="onion" ;;          # LEFT / L1
             106|311) SELECTION="telmios" ;;        # RIGHT / R1
-            28|57|97|305|315)                      # A/ENTER/SPACE/RCTRL/START
+            28|305|315)                            # A/ENTER/START
                 # Verifier si protection active pour cet OS
                 _need_pw=0
                 case "$PASSWORD_PROTECT" in
@@ -318,6 +636,10 @@ while [ $COUNTER -lt $TIMEOUT ]; do
                     log "Lecteurs menu redemarres (PW echec)"
                 fi
                 ;;
+            57|97|314)                             # SELECT (KEY_SPACE / KEY_RCTRL / BTN_SELECT)
+                log "SELECT: mode config"
+                enter_config_mode
+                COUNTER=0 ;;
             14|1|304)                              # B/BACKSPACE/ESC
                 _s=$(cat "$CHOICE_FILE" 2>/dev/null || echo "onion")
                 case "$_s" in onion|telmios) SELECTION="$_s" ;; *) SELECTION="onion" ;; esac
