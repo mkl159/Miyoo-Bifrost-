@@ -49,7 +49,7 @@ Un bootloader léger qui affiche un menu graphique au démarrage pour choisir en
 - **3 langues** : Français, English, Español — menu et installateur traduits
 - **Compatibilité** Miyoo Mini (283) et Miyoo Mini Plus (354) — image pivotée 180° automatiquement pour MM
 - **Protection parentale** : code secret par séquence de boutons, configurable par OS (optionnel)
-- **Menu de configuration sur la console** : accessible via SELECT, protégé par code admin — modifie verrouillage, codes et vibrations directement depuis la Miyoo
+- **Menu de configuration sur la console** : accessible via **X**, protégé par code admin — modifie verrouillage, codes et vibrations directement depuis la Miyoo
 - **Compatible Telmi-Sync** : les histoires, sauvegardes et musiques sont accessibles depuis l'application Telmi-Sync sans reformater la carte
 - **Configuration** par fichier texte simple sur la SD — aucun accès PC requis après installation
 - **Installateur automatique** PowerShell — formate la SD en FAT32, copie tout, génère les images
@@ -204,7 +204,7 @@ Windows refuse de formater en FAT32 les cartes > 32 Go via son interface graphiq
 | **► Droite** | Passer sur TelmiOS |
 | **A** | Confirmer et lancer l'OS sélectionné |
 | **B** | Lancer directement le dernier OS utilisé (sans confirmer) |
-| **SELECT** | Ouvrir le menu de configuration (code requis) |
+| **X** | Ouvrir le menu de configuration (code requis) |
 | *(60 secondes sans action)* | Lance automatiquement le dernier OS mémorisé |
 
 Le choix est **mémorisé automatiquement** — au prochain démarrage, le dernier OS utilisé est présélectionné.
@@ -233,7 +233,7 @@ CONFIG_SEQUENCE="UP UP DOWN DOWN"       # code secret du menu de configuration
 
 Il est possible de configurer Bifrost **directement depuis la Miyoo**, sans accès au PC :
 
-1. Dans le menu de boot, appuie sur **SELECT**
+1. Dans le menu de boot, appuie sur **X**
 2. Entre le **code administrateur** (défaut : `UP UP DOWN DOWN`) puis **A**
 3. Navigue avec **Haut/Bas**, confirme avec **A**, retour avec **B**
 
@@ -342,7 +342,7 @@ A lightweight bootloader that displays a graphical menu at startup to choose bet
 - **3 languages**: Français, English, Español — both menu and installer are translated
 - **Compatibility** with Miyoo Mini (283) and Miyoo Mini Plus (354) — image auto-rotated 180° for MM
 - **Parental lock**: secret button sequence, configurable per OS (optional)
-- **On-device config menu**: accessible via SELECT, protected by admin code — change lock settings, codes and vibration directly from the Miyoo
+- **On-device config menu**: accessible via **X**, protected by admin code — change lock settings, codes and vibration directly from the Miyoo
 - **Telmi-Sync compatible**: stories, saves and music are accessible from the Telmi-Sync app without reformatting the card
 - **Configuration** via simple text file on SD — no PC needed after installation
 - **Automatic installer** in PowerShell — formats SD to FAT32, copies everything, generates images
@@ -497,7 +497,7 @@ Windows refuses to format cards > 32 GB as FAT32 through its GUI. Use **[Rufus](
 | **► Right** | Switch to TelmiOS |
 | **A** | Confirm and launch selected OS |
 | **B** | Directly launch the last used OS (skip menu) |
-| **SELECT** | Open configuration menu (code required) |
+| **X** | Open configuration menu (code required) |
 | *(60 seconds with no input)* | Automatically launches the last remembered OS |
 
 The choice is **automatically remembered** — on next startup the last used OS is pre-selected.
@@ -526,7 +526,7 @@ CONFIG_SEQUENCE="UP UP DOWN DOWN"       # secret code for the config menu
 
 You can configure Bifrost **directly from the Miyoo**, without a PC:
 
-1. In the boot menu, press **SELECT**
+1. In the boot menu, press **X**
 2. Enter the **admin code** (default: `UP UP DOWN DOWN`) then **A**
 3. Navigate with **Up/Down**, confirm with **A**, go back with **B**
 

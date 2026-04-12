@@ -115,10 +115,9 @@ vibrate() {
 # Normalise un keycode (variantes -> code canonique)
 _norm_key() {
     case "$1" in
-        305|315) echo 28  ;;   # BTN_B/START agissent comme A dans les sous-menus
-        1|304)   echo 14  ;;   # variantes de B
-        57|97)   echo 57  ;;   # SELECT : garde tel quel (pas normalise en A)
-        *)       echo "$1" ;;
+        57|97|305|315) echo 28  ;;   # A et toutes ses variantes
+        1|304)         echo 14  ;;   # variantes de B
+        *)             echo "$1" ;;
     esac
 }
 
@@ -505,7 +504,7 @@ while [ $COUNTER -lt $TIMEOUT ]; do
         case "$KEY" in
             105|310) SELECTION="onion" ;;          # LEFT / L1
             106|311) SELECTION="telmios" ;;        # RIGHT / R1
-            28|305|315)                            # A/ENTER/START
+            28|57|97|305|315)                      # A/ENTER/SPACE/RCTRL/START
                 # Verifier si protection active pour cet OS
                 _need_pw=0
                 case "$PASSWORD_PROTECT" in
@@ -636,8 +635,8 @@ while [ $COUNTER -lt $TIMEOUT ]; do
                     log "Lecteurs menu redemarres (PW echec)"
                 fi
                 ;;
-            57|97|314)                             # SELECT (KEY_SPACE / KEY_RCTRL / BTN_SELECT)
-                log "SELECT: mode config"
+            33)                                    # X -> Mode configuration
+                log "X: mode config"
                 enter_config_mode
                 COUNTER=0 ;;
             14|1|304)                              # B/BACKSPACE/ESC
