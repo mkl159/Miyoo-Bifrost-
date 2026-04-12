@@ -19,9 +19,11 @@ Un bootloader léger qui affiche un menu graphique au démarrage pour choisir en
 
 ## Aperçu
 
-**Interface sur console réelle**
+**Installateur Windows**
 
-![Interface Bifrost sur Miyoo](preview/device_bootmenu.jpg)
+![Installateur Windows — capture d'installation](preview/device_bootmenu.jpg)
+
+**Interface du menu sur console Miyoo**
 
 | OnionOS sélectionné | TelmiOS sélectionné |
 |---|---|
@@ -31,7 +33,7 @@ Un bootloader léger qui affiche un menu graphique au démarrage pour choisir en
 |---|---|
 | ![Locked Onion](preview/bootmenu_locked_onion_FR.png) | ![Locked TelmiOS](preview/bootmenu_locked_telmios_FR.png) |
 
-**Menu de configuration (X)**
+**Menu de configuration (X) — sur console Miyoo**
 
 | Code admin | Menu principal | Verrouillage OS |
 |---|---|---|
