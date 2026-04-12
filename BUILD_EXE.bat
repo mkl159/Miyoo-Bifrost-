@@ -37,6 +37,9 @@ echo Compilateur : %CSC%
 echo.
 
 :: --- Compile ---
+set "ICON_FLAG="
+if exist "%~dp0bifrost.ico" set "ICON_FLAG=/win32icon:%~dp0bifrost.ico"
+
 "%CSC%" ^
     /target:winexe ^
     /out:INSTALLER_BIFROST.exe ^
@@ -45,6 +48,7 @@ echo.
     /r:System.dll ^
     /r:System.Windows.Forms.dll ^
     /r:System.Drawing.dll ^
+    %ICON_FLAG% ^
     INSTALLER_BIFROST.cs
 
 if %ERRORLEVEL% == 0 (
