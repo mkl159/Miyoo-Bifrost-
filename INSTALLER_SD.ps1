@@ -216,11 +216,14 @@ Log "SCRIPT_DIR : $SCRIPT_DIR"
 
 # Fonction qui ouvre un selecteur de dossier toujours au premier plan
 function Select-Folder {
-    param([string]$Description)
+    param([string]$Description, [string]$InitialPath = $SCRIPT_DIR)
     $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
     $dialog.Description = $Description
-    $dialog.RootFolder = "MyComputer"
     $dialog.ShowNewFolderButton = $false
+    # Demarre directement dans le dossier du script (ou le chemin fourni)
+    if ($InitialPath -and (Test-Path $InitialPath)) {
+        $dialog.SelectedPath = $InitialPath
+    }
     $owner = New-Object System.Windows.Forms.Form
     $owner.TopMost = $true
     $owner.StartPosition = "CenterScreen"
@@ -243,6 +246,8 @@ if (-not $SD) {
     Read-Host $L.pressEnter
     exit 1
 }
+# Normalise : "E:" -> "E:\" pour eviter Path.Combine bug (E:.tmp_update au lieu de E:\.tmp_update)
+if ($SD -match '^[A-Za-z]:$') { $SD = "$SD\" }
 Log "Carte SD selectionnee : $SD"
 if (-not (Test-Path "$SD\")) {
     Log "Carte SD inaccessible : $SD" "ERROR"
@@ -290,13 +295,22 @@ if ($vol) {
                 exit 1
             }
         } else {
-            Log "Formatage refuse par l'utilisateur - arret" "WARN"
+            Log "Formatage refuse - demande si continuer quand meme" "WARN"
             Write-Host ""
-            Write-Host $L.fat32Abort -ForegroundColor Red
-            Log "=== FIN (annule) ==="
-            Write-Host $L.logSaved -ForegroundColor DarkGray
-            Read-Host $L.pressEnter
-            exit 1
+            Write-Host "  La carte n'est pas en FAT32. Le Miyoo risque de ne pas demarrer." -ForegroundColor Yellow
+            $repSkip = Read-Host "  Continuer quand meme sans formater ? (O=Oui pour risquer, N=Non pour arreter)"
+            if ($repSkip -match "^[oOyYsS]") {
+                Log "Continuer sans FAT32 - risque accepte par l'utilisateur" "WARN"
+                Write-Host "  [AVERT] Installation continuee sans FAT32 - la carte risque de ne pas booter." -ForegroundColor Yellow
+            } else {
+                Log "Arret demande par l'utilisateur" "WARN"
+                Write-Host ""
+                Write-Host $L.fat32Abort -ForegroundColor Red
+                Log "=== FIN (annule) ==="
+                Write-Host $L.logSaved -ForegroundColor DarkGray
+                Read-Host $L.pressEnter
+                exit 1
+            }
         }
     } else {
         Log "FAT32 deja present - OK"

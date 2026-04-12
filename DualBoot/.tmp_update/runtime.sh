@@ -129,7 +129,7 @@ _cfg_to_codes() {
             UP)     _r="$_r 103" ;; DOWN)   _r="$_r 108" ;;
             LEFT)   _r="$_r 105" ;; RIGHT)  _r="$_r 106" ;;
             A)      _r="$_r 28"  ;; B)      _r="$_r 14"  ;;
-            X)      _r="$_r 33"  ;; Y)      _r="$_r 21"  ;;
+            X)      _r="$_r 42"  ;; Y)      _r="$_r 21"  ;;
             L|L1)   _r="$_r 310" ;; R|R1)   _r="$_r 311" ;;
             START)  _r="$_r 315" ;; SELECT) _r="$_r 314" ;;
         esac
@@ -145,7 +145,7 @@ _codes_to_names() {
             103) _r="$_r UP"     ;; 108) _r="$_r DOWN"   ;;
             105) _r="$_r LEFT"   ;; 106) _r="$_r RIGHT"  ;;
             28)  _r="$_r A"      ;; 14)  _r="$_r B"      ;;
-            33)  _r="$_r X"      ;; 21)  _r="$_r Y"      ;;
+            42)  _r="$_r X"      ;; 21)  _r="$_r Y"      ;;
             310) _r="$_r L1"     ;; 311) _r="$_r R1"     ;;
             315) _r="$_r START"  ;; 314) _r="$_r SELECT" ;;
         esac
@@ -212,7 +212,7 @@ check_config_access() {
         _k=$(_norm_key "$_raw")
         case "$_k" in
             14) log "Config access: annule (B)"; vibrate 100; return 1 ;;
-            28) ;;
+            28) break ;;
             *)  _pressed="$_pressed $_k"
                 _pcount=$((_pcount+1))
                 vibrate 25
@@ -338,7 +338,7 @@ cfg_enter_sequence() {
         case "$_k" in
             14)  return 1 ;;
             28)  break    ;;
-            103|108|105|106|310|311|33|21|315)
+            103|108|105|106|310|311|42|21|314|315)
                 _codes="$_codes $_k"
                 _count=$((_count+1))
                 vibrate 25 ;;
@@ -538,7 +538,7 @@ while [ $COUNTER -lt $TIMEOUT ]; do
                         RIGHT)  _expected="$_expected 106" ;;
                         A)      _expected="$_expected 28"  ;;
                         B)      _expected="$_expected 14"  ;;
-                        X)      _expected="$_expected 33"  ;;
+                        X)      _expected="$_expected 42"  ;;
                         Y)      _expected="$_expected 21"  ;;
                         L|L1)   _expected="$_expected 310" ;;
                         R|R1)   _expected="$_expected 311" ;;
@@ -635,7 +635,7 @@ while [ $COUNTER -lt $TIMEOUT ]; do
                     log "Lecteurs menu redemarres (PW echec)"
                 fi
                 ;;
-            33)                                    # X -> Mode configuration
+            42)                                    # X -> Mode configuration
                 log "X: mode config"
                 enter_config_mode
                 COUNTER=0 ;;
