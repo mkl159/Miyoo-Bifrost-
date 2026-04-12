@@ -560,26 +560,53 @@ if (-not (Test-Path $pythonScript)) {
         Log "Python non trouve sur le systeme" "WARN"
         Write-Host "  [IGNORE] Python non trouve. Installe Python 3 puis lance generate_bootmenu.py" -ForegroundColor Yellow
     } else {
-        Write-Host "  Verification de Pillow..." -ForegroundColor Gray
-        $pillowCheck = & $pythonCmd -c "import PIL" 2>&1
-        if ($LASTEXITCODE -ne 0) {
-            Log "Pillow absent - installation..."
-            Write-Host "  Installation de Pillow (pip install Pillow)..." -ForegroundColor Gray
-            $pipOut = & $pythonCmd -m pip install Pillow --quiet 2>&1
-            Log "pip output : $($pipOut -join ' | ')"
-        } else {
-            Log "Pillow deja installe"
+        # Verifier la compatibilite de la version Python avec Pillow
+        $pyVerStr = & $pythonCmd --version 2>&1
+        $pyVerMatch = [regex]::Match($pyVerStr, 'Python (\d+)\.(\d+)')
+        $pyTooNew = $false
+        if ($pyVerMatch.Success) {
+            $pyMaj = [int]$pyVerMatch.Groups[1].Value
+            $pyMin = [int]$pyVerMatch.Groups[2].Value
+            if ($pyMaj -gt 3 -or ($pyMaj -eq 3 -and $pyMin -ge 14)) {
+                $pyTooNew = $true
+                Log "Python $pyMaj.$pyMin detecte - Pillow n'a pas de wheel pour cette version (necessite Python <= 3.13)" "WARN"
+                Write-Host "  [AVERT] Python $pyMaj.$pyMin est trop recent pour Pillow." -ForegroundColor Yellow
+                Write-Host "  Installe Python 3.11 ou 3.12 depuis python.org pour generer les images." -ForegroundColor Yellow
+                Write-Host "  L'installation continue - les images seront absentes (ecran noir au boot)." -ForegroundColor Yellow
+            }
         }
-        Write-Host "  Generation des images RAW (FR/EN/ES)..." -ForegroundColor Gray
-        Log "Lancement generate_bootmenu.py $SD"
-        $pyOut = & $pythonCmd $pythonScript $SD 2>&1
-        Log "generate_bootmenu output : $($pyOut -join ' | ')"
-        if ($LASTEXITCODE -eq 0) {
-            Log "Images generees avec succes"
-            Write-Host "  OK - Images generees" -ForegroundColor Green
-        } else {
-            Log "ERREUR generation images (code $LASTEXITCODE)" "ERROR"
-            Write-Host "  ERREUR lors de la generation des images" -ForegroundColor Red
+
+        if (-not $pyTooNew) {
+            Write-Host "  Verification de Pillow..." -ForegroundColor Gray
+            $pillowCheck = & $pythonCmd -c "import PIL" 2>&1
+            if ($LASTEXITCODE -ne 0) {
+                Log "Pillow absent - installation (wheel uniquement, pas de compilation source)..."
+                Write-Host "  Installation de Pillow..." -ForegroundColor Gray
+                # --only-binary=:all: evite la compilation source qui bloque indefiniment
+                $pipOut = & $pythonCmd -m pip install Pillow --only-binary=:all: --quiet 2>&1
+                Log "pip output : $($pipOut -join ' | ')"
+                if ($LASTEXITCODE -ne 0) {
+                    Log "Pillow introuvable pour cette version Python - images non generees" "WARN"
+                    Write-Host "  [AVERT] Pillow indisponible pour $pyVerStr - images non generees." -ForegroundColor Yellow
+                    $pyTooNew = $true
+                }
+            } else {
+                Log "Pillow deja installe"
+            }
+        }
+
+        if (-not $pyTooNew) {
+            Write-Host "  Generation des images RAW (FR/EN/ES)..." -ForegroundColor Gray
+            Log "Lancement generate_bootmenu.py $SD"
+            $pyOut = & $pythonCmd $pythonScript $SD 2>&1
+            Log "generate_bootmenu output : $($pyOut -join ' | ')"
+            if ($LASTEXITCODE -eq 0) {
+                Log "Images generees avec succes"
+                Write-Host "  OK - Images generees" -ForegroundColor Green
+            } else {
+                Log "ERREUR generation images (code $LASTEXITCODE)" "ERROR"
+                Write-Host "  ERREUR lors de la generation des images" -ForegroundColor Red
+            }
         }
     }
 }

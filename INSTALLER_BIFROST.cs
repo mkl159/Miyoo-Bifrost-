@@ -514,20 +514,57 @@ class InstallerForm : Form
                 {
                     Log("Python: " + pyCmd);
                     AppendLog("  Python: " + pyCmd, Color.Silver);
-                    if (RunCommand(pyCmd, "-c \"import PIL\"") != 0)
+
+                    // Verifier la compatibilite Python / Pillow (Pillow n'a pas de wheel pour Python >= 3.14)
+                    bool pyTooNew = false;
+                    string pyVerOut = "";
+                    try {
+                        ProcessStartInfo pv = new ProcessStartInfo();
+                        pv.FileName = pyCmd; pv.Arguments = "--version";
+                        pv.UseShellExecute = false; pv.RedirectStandardOutput = true; pv.RedirectStandardError = true; pv.CreateNoWindow = true;
+                        Process pProc = Process.Start(pv);
+                        pyVerOut = pProc.StandardOutput.ReadToEnd() + pProc.StandardError.ReadToEnd();
+                        pProc.WaitForExit();
+                        var m = System.Text.RegularExpressions.Regex.Match(pyVerOut, @"Python (\d+)\.(\d+)");
+                        if (m.Success) {
+                            int maj = int.Parse(m.Groups[1].Value), min = int.Parse(m.Groups[2].Value);
+                            if (maj > 3 || (maj == 3 && min >= 14)) {
+                                pyTooNew = true;
+                                Log("Python " + maj + "." + min + " trop recent - Pillow indisponible (necessite <= 3.13)");
+                                AppendLog("  [AVERT] Python " + maj + "." + min + " trop recent pour Pillow.", Color.Orange);
+                                AppendLog("  Installe Python 3.11 ou 3.12 pour generer les images.", Color.Orange);
+                                AppendLog("  Installation continue - ecran noir au boot (OK apres 60s).", Color.Orange);
+                            }
+                        }
+                    } catch { }
+
+                    if (!pyTooNew)
                     {
-                        AppendLog("  Installation de Pillow...", Color.Silver);
-                        RunCommand(pyCmd, "-m pip install Pillow --quiet");
+                        if (RunCommand(pyCmd, "-c \"import PIL\"") != 0)
+                        {
+                            AppendLog("  Installation de Pillow...", Color.Silver);
+                            // --only-binary=:all: evite la compilation source qui bloque indefiniment
+                            int pipRet = RunCommand(pyCmd, "-m pip install Pillow --only-binary=:all: --quiet");
+                            if (pipRet != 0)
+                            {
+                                AppendLog("  [AVERT] Pillow indisponible pour cette version Python.", Color.Orange);
+                                pyTooNew = true;
+                            }
+                        }
                     }
-                    AppendLog("  Generation des images RAW (FR/EN/ES)...", Color.Silver);
-                    // Si le chemin se termine par \ (ex: E:\), doubler le \ avant la quote
-                    // fermante pour eviter que \" soit interprete comme quote echappee
-                    string sdArg = sd.EndsWith("\\") ? sd + "\\" : sd;
-                    int ret = RunCommandLog(pyCmd, "\"" + pyScript + "\" \"" + sdArg + "\"");
-                    if (ret == 0)
-                        AppendLog("  OK - Images generees", Color.LightGreen);
-                    else
-                        AppendLog("  ERREUR generate_bootmenu.py (code " + ret + ")", Color.OrangeRed);
+
+                    if (!pyTooNew)
+                    {
+                        AppendLog("  Generation des images RAW (FR/EN/ES)...", Color.Silver);
+                        // Si le chemin se termine par \ (ex: E:\), doubler le \ avant la quote
+                        // fermante pour eviter que \" soit interprete comme quote echappee
+                        string sdArg = sd.EndsWith("\\") ? sd + "\\" : sd;
+                        int ret = RunCommandLog(pyCmd, "\"" + pyScript + "\" \"" + sdArg + "\"");
+                        if (ret == 0)
+                            AppendLog("  OK - Images generees", Color.LightGreen);
+                        else
+                            AppendLog("  ERREUR generate_bootmenu.py (code " + ret + ")", Color.OrangeRed);
+                    }
                 }
             }
 
