@@ -4,7 +4,10 @@ Telmios/
 finale/
 
 # Fichiers RAW generes par generate_bootmenu.py (binaires lourds)
-*.raw
+/*.raw
+/DualBoot/*.raw
+# Garder les .raw bundlees dans DualBoot/.tmp_update/res/
+!DualBoot/.tmp_update/res/*.raw
 
 # PNG generes a la racine (utiliser preview/ pour les captures)
 /bootmenu_*.png

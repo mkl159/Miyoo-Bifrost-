@@ -496,6 +496,15 @@ class InstallerForm : Form
 
             // ==== STEP 8: Boot menu images ====
             SetStep(_L["step8"], 8);
+            // Verifier si les images .raw sont deja presentes (bundlees dans DualBoot, copiees etape 2)
+            string rawCheck = Path.Combine(sd, ".tmp_update", "res", "bootmenu_onion_FR.raw");
+            if (File.Exists(rawCheck))
+            {
+                Log("Images .raw deja presentes (bundlees) - generation Python ignoree");
+                AppendLog("  OK - Images deja presentes (bundlees)", Color.LightGreen);
+            }
+            else
+            {
             string pyScript = Path.Combine(_scriptDir, "generate_bootmenu.py");
             if (!File.Exists(pyScript))
             {
@@ -567,6 +576,7 @@ class InstallerForm : Form
                     }
                 }
             }
+            } // fin du bloc else (images non bundlees)
 
             // ==== Final verification ====
             AppendLog("");

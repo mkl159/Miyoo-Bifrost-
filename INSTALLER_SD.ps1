@@ -544,6 +544,12 @@ Write-Host "  OK" -ForegroundColor Green
 Write-Host ""
 Write-Host $L.step8 -ForegroundColor Yellow
 Log "--- ETAPE 8 : Images menu ---"
+# Verifier si les images .raw sont deja presentes (bundlees dans DualBoot et copiees a l'etape 2)
+$rawCheck = "$SD\.tmp_update\res\bootmenu_onion_FR.raw"
+if (Test-Path $rawCheck) {
+    Log "Images .raw deja presentes sur la SD (bundlees) - generation Python ignoree"
+    Write-Host "  OK - Images deja presentes (bundlees)" -ForegroundColor Green
+} else {
 $pythonScript = "$SCRIPT_DIR\generate_bootmenu.py"
 if (-not (Test-Path $pythonScript)) {
     Log "generate_bootmenu.py introuvable dans $SCRIPT_DIR" "WARN"
@@ -610,6 +616,7 @@ if (-not (Test-Path $pythonScript)) {
         }
     }
 }
+} # fin du bloc else (images non bundlees)
 
 # =============================================================
 Write-Host ""
