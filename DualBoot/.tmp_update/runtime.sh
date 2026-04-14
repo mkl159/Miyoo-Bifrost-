@@ -433,24 +433,44 @@ SELECTION="onion"
 log "selection=$SELECTION"
 
 # ---- show_menu : ecriture directe sur /dev/fb0 (SANS SDL) ----
-# Les fichiers .raw sont des images BGRA 640x480x4 = 1228800 bytes
-# Nom : bootmenu_<name>_<LANG>.raw  (fallback : bootmenu_<name>.raw)
+# Les fichiers .raw sont des images BGRA 640x480x4 ou 752x560x4 selon le modele.
+# Nom : bootmenu_<name>_<LANG>[_flip].raw  (fallback progressif sans suffix)
 show_menu() {
     local name="$1"
-    local img_lang="$sysdir/res/bootmenu_${name}_${LANG}.raw"
-    local img_default="$sysdir/res/bootmenu_${name}.raw"
+    local img_lang="$sysdir/res/bootmenu_${name}_${LANG}${RES_SUFFIX}.raw"
+    local img_default="$sysdir/res/bootmenu_${name}${RES_SUFFIX}.raw"
+    local img_lang_base="$sysdir/res/bootmenu_${name}_${LANG}.raw"
+    local img_default_base="$sysdir/res/bootmenu_${name}.raw"
     if [ -f "$img_lang" ]; then
         dd if="$img_lang" of=/dev/fb0 bs=4096 2>/dev/null && sync
-        log "show_menu $name [$LANG]: OK"
+        log "show_menu $name [$LANG]${RES_SUFFIX}: OK"
     elif [ -f "$img_default" ]; then
         dd if="$img_default" of=/dev/fb0 bs=4096 2>/dev/null && sync
-        log "show_menu $name [fallback]: OK"
+        log "show_menu $name [fallback]${RES_SUFFIX}: OK"
+    elif [ -f "$img_lang_base" ]; then
+        dd if="$img_lang_base" of=/dev/fb0 bs=4096 2>/dev/null && sync
+        log "show_menu $name [$LANG] (no-flip fallback): OK"
+    elif [ -f "$img_default_base" ]; then
+        dd if="$img_default_base" of=/dev/fb0 bs=4096 2>/dev/null && sync
+        log "show_menu $name (bare fallback): OK"
     else
         log "show_menu $name: MISSING ($img_lang)"
     fi
 }
 
 log "fb0 bits=$(cat /sys/class/graphics/fb0/bits_per_pixel 2>/dev/null)"
+
+# ---- Detecter resolution framebuffer (Miyoo MINI Flip = 752x560) ----
+_fb_vsize=$(cat /sys/class/graphics/fb0/virtual_size 2>/dev/null || echo "640,480")
+FB_W=$(echo "$_fb_vsize" | cut -d',' -f1)
+FB_H=$(echo "$_fb_vsize" | cut -d',' -f2)
+if [ "$FB_W" = "752" ] && [ "$FB_H" = "560" ]; then
+    RES_SUFFIX="_flip"
+    log "Miyoo Mini Flip detecte (${FB_W}x${FB_H}) -> images _flip"
+else
+    RES_SUFFIX=""
+    log "Resolution FB: ${FB_W}x${FB_H} -> images standard"
+fi
 
 # ---- Attendre que le backlight soit pret (PWM peut prendre jusqu'a 2s) ----
 sleep 1.5

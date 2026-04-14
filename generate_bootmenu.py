@@ -840,11 +840,102 @@ def save_raw(img: Image.Image, path: str):
     return len(raw_bytes)
 
 
+# ── Generateur d'images pour une resolution donnee ────────────
+
+def _generate_all_images(suffix, sd_res):
+    """
+    Genere tous les fichiers RAW pour la resolution courante (W x H).
+    suffix : "" pour 640x480, "_flip" pour 752x560 (Miyoo Mini Flip)
+    Les PNG de preview ne sont generes que pour la resolution de base (suffix vide).
+    """
+    for lang in ("FR", "EN", "ES"):
+        print(f"\n{'-'*30}")
+        print(f"  Langue : {lang}  [{W}x{H}]")
+        print(f"{'-'*30}")
+
+        for os_name in ("onion", "telmios"):
+            # Image menu principale
+            print(f"  -> bootmenu_{os_name}_{lang}{suffix} ...")
+            img = create_bootmenu(os_name, lang)
+
+            if not suffix:
+                png_path = os.path.join(OUTPUT_DIR, f"bootmenu_{os_name}_{lang}.png")
+                img.save(png_path, "PNG", optimize=True)
+                print(f"     PNG : {png_path}")
+
+            raw_path = os.path.join(sd_res, f"bootmenu_{os_name}_{lang}{suffix}.raw")
+            nb = save_raw(img, raw_path)
+            print(f"     RAW : {raw_path} ({nb} octets)")
+
+            # Ecran verrouille
+            print(f"  -> bootmenu_locked_{os_name}_{lang}{suffix} ...")
+            img_lock = create_locked_screen(os_name, lang)
+
+            raw_lock = os.path.join(sd_res, f"bootmenu_locked_{os_name}_{lang}{suffix}.raw")
+            nb_lock  = save_raw(img_lock, raw_lock)
+            print(f"     RAW : {raw_lock} ({nb_lock} octets)")
+
+            if not suffix:
+                png_lock = os.path.join(OUTPUT_DIR, f"bootmenu_locked_{os_name}_{lang}.png")
+                img_lock.save(png_lock, "PNG", optimize=True)
+
+    # ── Images du menu de configuration ──────────────────────────
+    print(f"\n{'-'*30}")
+    print(f"  Images Menu Configuration  [{W}x{H}]")
+    print(f"{'-'*30}")
+
+    cfg_specs = []
+    cfg_specs.append(("config_access", None, None))
+    for i in range(6):
+        cfg_specs.append((f"config_main_{i}", "main", i))
+    for i in range(4):
+        cfg_specs.append((f"config_protect_{i}", "protect", i))
+    for i in range(4):
+        cfg_specs.append((f"config_vib_{i}", "vib", i))
+    cfg_specs.append(("config_pw_entry",  "entry_pw",  None))
+    cfg_specs.append(("config_cfg_entry", "entry_cfg", None))
+    cfg_specs.append(("config_saved", "saved", None))
+
+    for lang in ("FR", "EN", "ES"):
+        print(f"\n  Langue : {lang}")
+        for name, kind, idx in cfg_specs:
+            if kind is None and name == "config_access":
+                img = create_config_access(lang)
+            elif kind == "main":
+                img = create_config_main(idx, lang)
+            elif kind == "protect":
+                img = create_config_choice("protect", idx, lang)
+            elif kind == "vib":
+                img = create_config_choice("vib", idx, lang)
+            elif kind == "entry_pw":
+                img = create_config_entry("pw", lang)
+            elif kind == "entry_cfg":
+                img = create_config_entry("cfg", lang)
+            elif kind == "saved":
+                img = create_config_saved(lang)
+            else:
+                continue
+
+            raw_name = f"bootmenu_{name}_{lang}{suffix}.raw"
+            raw_path = os.path.join(sd_res, raw_name)
+            nb = save_raw(img, raw_path)
+            print(f"     {raw_name} ({nb} octets)")
+
+            # PNG de preview (FR uniquement, resolution de base uniquement)
+            if lang == "FR" and not suffix:
+                preview_dir = os.path.join(OUTPUT_DIR, "preview")
+                os.makedirs(preview_dir, exist_ok=True)
+                png_path = os.path.join(preview_dir, f"bootmenu_{name}_FR.png")
+                img.save(png_path, "PNG", optimize=True)
+
+
 # ── Point d'entree ────────────────────────────────────────────
 
 def main():
+    global W, H
+
     print("=" * 56)
-    print("  Generateur Boot Menu Miyoo Mini+ Dual Boot")
+    print("  Generateur Boot Menu Miyoo Mini / Mini+ / Mini Flip")
     print("  Langues : FR / EN / ES")
     print("=" * 56)
 
@@ -870,90 +961,19 @@ def main():
             SD_RES = OUTPUT_DIR
             print(f"\n[!] Carte SD introuvable -> RAW dans {SD_RES}")
 
-    for lang in ("FR", "EN", "ES"):
-        print(f"\n{'-'*30}")
-        print(f"  Langue : {lang}")
-        print(f"{'-'*30}")
+    # ── Resolution 640x480 : Miyoo Mini / Mini Plus ───────────────
+    print(f"\n{'='*56}")
+    print("  Resolution 640x480  (Miyoo Mini / Mini Plus)")
+    print(f"{'='*56}")
+    W, H = 640, 480
+    _generate_all_images("", SD_RES)
 
-        for os_name in ("onion", "telmios"):
-            # Image menu principale
-            print(f"  -> bootmenu_{os_name}_{lang} ...")
-            img = create_bootmenu(os_name, lang)
-
-            png_path = os.path.join(OUTPUT_DIR, f"bootmenu_{os_name}_{lang}.png")
-            img.save(png_path, "PNG", optimize=True)
-
-            raw_path = os.path.join(SD_RES, f"bootmenu_{os_name}_{lang}.raw")
-            nb = save_raw(img, raw_path)
-            print(f"     PNG : {png_path}")
-            print(f"     RAW : {raw_path} ({nb} octets)")
-
-            # Ecran verrouille
-            print(f"  -> bootmenu_locked_{os_name}_{lang} ...")
-            img_lock = create_locked_screen(os_name, lang)
-
-            raw_lock = os.path.join(SD_RES, f"bootmenu_locked_{os_name}_{lang}.raw")
-            nb_lock  = save_raw(img_lock, raw_lock)
-
-            png_lock = os.path.join(OUTPUT_DIR, f"bootmenu_locked_{os_name}_{lang}.png")
-            img_lock.save(png_lock, "PNG", optimize=True)
-            print(f"     RAW : {raw_lock} ({nb_lock} octets)")
-
-    # ── Images du menu de configuration ──────────────────────────
-    print(f"\n{'-'*30}")
-    print("  Images Menu Configuration")
-    print(f"{'-'*30}")
-
-    cfg_specs = []
-
-    # Ecran d'acces (code admin)
-    cfg_specs.append(("config_access", None, None))
-    # Menu principal (6 items)
-    for i in range(6):
-        cfg_specs.append((f"config_main_{i}", "main", i))
-    # Protection mode (4 options)
-    for i in range(4):
-        cfg_specs.append((f"config_protect_{i}", "protect", i))
-    # Vibration (4 presets)
-    for i in range(4):
-        cfg_specs.append((f"config_vib_{i}", "vib", i))
-    # Saisie sequences
-    cfg_specs.append(("config_pw_entry",  "entry_pw",  None))
-    cfg_specs.append(("config_cfg_entry", "entry_cfg", None))
-    # Confirmation sauvegarde
-    cfg_specs.append(("config_saved", "saved", None))
-
-    for lang in ("FR", "EN", "ES"):
-        print(f"\n  Langue : {lang}")
-        for name, kind, idx in cfg_specs:
-            if kind is None and name == "config_access":
-                img = create_config_access(lang)
-            elif kind == "main":
-                img = create_config_main(idx, lang)
-            elif kind == "protect":
-                img = create_config_choice("protect", idx, lang)
-            elif kind == "vib":
-                img = create_config_choice("vib", idx, lang)
-            elif kind == "entry_pw":
-                img = create_config_entry("pw", lang)
-            elif kind == "entry_cfg":
-                img = create_config_entry("cfg", lang)
-            elif kind == "saved":
-                img = create_config_saved(lang)
-            else:
-                continue
-
-            raw_name = f"bootmenu_{name}_{lang}.raw"
-            raw_path = os.path.join(SD_RES, raw_name)
-            nb = save_raw(img, raw_path)
-            print(f"     {raw_name} ({nb} octets)")
-
-            # PNG de preview (FR uniquement, dans preview/)
-            if lang == "FR":
-                preview_dir = os.path.join(OUTPUT_DIR, "preview")
-                os.makedirs(preview_dir, exist_ok=True)
-                png_path = os.path.join(preview_dir, f"bootmenu_{name}_FR.png")
-                img.save(png_path, "PNG", optimize=True)
+    # ── Resolution 752x560 : Miyoo Mini Flip ─────────────────────
+    print(f"\n{'='*56}")
+    print("  Resolution 752x560  (Miyoo Mini Flip) -> suffix _flip")
+    print(f"{'='*56}")
+    W, H = 752, 560
+    _generate_all_images("_flip", SD_RES)
 
     print(f"\n{'='*56}")
     print("TERMINE !")
