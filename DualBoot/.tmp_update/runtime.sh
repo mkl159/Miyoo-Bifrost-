@@ -1,6 +1,6 @@
 #!/bin/sh
 # =============================================================
-#  DUAL BOOT SELECTOR - Miyoo Mini / Mini Plus
+#  DUAL BOOT SELECTOR - Miyoo Mini / Mini Plus / Mini Flip
 #  Affichage direct sur /dev/fb0 (bypass SDL = pas de segfault)
 # =============================================================
 
@@ -18,22 +18,78 @@ rm -f "$LOG"
 log() { echo "[$(date +%H:%M:%S)] $*" >> "$LOG"; sync; }
 log "=== DualBoot start ==="
 
-# ---- Charger configuration ----
+# =============================================================
+#  Constantes keycodes (Linux input event codes)
+# =============================================================
+KEY_UP=103
+KEY_DOWN=108
+KEY_LEFT=105
+KEY_RIGHT=106
+KEY_A=28
+KEY_B=14
+KEY_X=42
+KEY_Y=21
+KEY_L1=310
+KEY_R1=311
+KEY_START=315
+KEY_SELECT=314
+
+# =============================================================
+#  Chargement securise de la configuration
+#  (parse ligne par ligne, valide chaque valeur)
+# =============================================================
 LANG="FR"
 VIBRATION_POWER=25
 VIBRATION_SELECT=60
-VIBRATION_CONFIRM=200
+VIBRATION_CONFIRM=100
 PASSWORD_PROTECT="none"
 PASSWORD_SEQUENCE=""
+CONFIG_SEQUENCE="UP UP DOWN DOWN"
+
+_is_num() { case "$1" in ''|*[!0-9]*) return 1 ;; *) return 0 ;; esac; }
+
+_is_valid_btn_seq() {
+    for _b in $1; do
+        case "$_b" in
+            UP|DOWN|LEFT|RIGHT|A|B|X|Y|L|L1|R|R1|START|SELECT) ;;
+            *) return 1 ;;
+        esac
+    done
+    return 0
+}
+
+_safe_read_cfg() {
+    local _cfg="$1"
+    [ -f "$_cfg" ] || return
+    while IFS='=' read -r _key _val; do
+        # Ignorer commentaires et lignes vides
+        case "$_key" in \#*|"") continue ;; esac
+        # Retirer guillemets autour de la valeur
+        _val=$(echo "$_val" | sed 's/^"//;s/"$//' | sed "s/^'//;s/'$//")
+        # Retirer commentaire inline
+        _val=$(echo "$_val" | sed 's/ *#.*//')
+        case "$_key" in
+            LANG)
+                case "$_val" in FR|EN|ES) LANG="$_val" ;; esac ;;
+            VIBRATION_POWER)
+                _is_num "$_val" && [ "$_val" -ge 0 ] && [ "$_val" -le 100 ] && VIBRATION_POWER="$_val" ;;
+            VIBRATION_SELECT)
+                _is_num "$_val" && [ "$_val" -ge 0 ] && [ "$_val" -le 500 ] && VIBRATION_SELECT="$_val" ;;
+            VIBRATION_CONFIRM)
+                _is_num "$_val" && [ "$_val" -ge 0 ] && [ "$_val" -le 500 ] && VIBRATION_CONFIRM="$_val" ;;
+            PASSWORD_PROTECT)
+                case "$_val" in none|onion|telmios|both) PASSWORD_PROTECT="$_val" ;; esac ;;
+            PASSWORD_SEQUENCE)
+                _is_valid_btn_seq "$_val" && PASSWORD_SEQUENCE="$_val" ;;
+            CONFIG_SEQUENCE)
+                _is_valid_btn_seq "$_val" && CONFIG_SEQUENCE="$_val" ;;
+        esac
+    done < "$_cfg"
+}
 
 CONFIG="$sysdir/config/dualboot.cfg"
-if [ -f "$CONFIG" ]; then
-    . "$CONFIG"
-    log "Config: LANG=$LANG VP=$VIBRATION_POWER VS=$VIBRATION_SELECT VC=$VIBRATION_CONFIRM PP=$PASSWORD_PROTECT"
-else
-    log "Config manquant ($CONFIG) - valeurs par defaut"
-fi
-CONFIG_SEQUENCE="${CONFIG_SEQUENCE:-UP UP DOWN DOWN}"
+_safe_read_cfg "$CONFIG"
+log "Config: LANG=$LANG VP=$VIBRATION_POWER VS=$VIBRATION_SELECT VC=$VIBRATION_CONFIRM PP=$PASSWORD_PROTECT"
 
 # ---- Detecter modele ----
 axp 0 > /dev/null 2>&1
@@ -102,56 +158,157 @@ log "charging=$is_charging"
 # ---- Vibration (puissance 1-100) ----
 vibrate() {
     local ms="${1:-100}"
+    [ "$VIBRATION_POWER" -eq 0 ] 2>/dev/null && return
     local effective=$(awk "BEGIN { v=int($ms * $VIBRATION_POWER / 100); print (v<5?5:v) }" 2>/dev/null)
     echo 0 > /sys/class/gpio/gpio48/value 2>/dev/null
     sleep $(awk "BEGIN { printf \"%.3f\", $effective / 1000 }" 2>/dev/null)
     echo 1 > /sys/class/gpio/gpio48/value 2>/dev/null
 }
 
-# ============================================================
-#  MENU DE CONFIGURATION (acces par SELECT dans le menu boot)
-# ============================================================
+# =============================================================
+#  Conversion noms de boutons <-> keycodes
+# =============================================================
 
-# Normalise un keycode (variantes -> code canonique)
-_norm_key() {
+# Convertit un nom de bouton en keycode
+_btn_to_code() {
     case "$1" in
-        57|97|305|315) echo 28  ;;   # A et toutes ses variantes
-        1|304)         echo 14  ;;   # variantes de B
-        *)             echo "$1" ;;
+        UP)     echo $KEY_UP     ;; DOWN)   echo $KEY_DOWN   ;;
+        LEFT)   echo $KEY_LEFT   ;; RIGHT)  echo $KEY_RIGHT  ;;
+        A)      echo $KEY_A      ;; B)      echo $KEY_B      ;;
+        X)      echo $KEY_X      ;; Y)      echo $KEY_Y      ;;
+        L|L1)   echo $KEY_L1     ;; R|R1)   echo $KEY_R1     ;;
+        START)  echo $KEY_START  ;; SELECT) echo $KEY_SELECT ;;
     esac
 }
 
-# Converti CONFIG_SEQUENCE (noms de boutons) en codes numeriques
-_cfg_to_codes() {
+# Convertit un keycode en nom de bouton
+_code_to_btn() {
+    case "$1" in
+        $KEY_UP)     echo "UP"     ;; $KEY_DOWN)   echo "DOWN"   ;;
+        $KEY_LEFT)   echo "LEFT"   ;; $KEY_RIGHT)  echo "RIGHT"  ;;
+        $KEY_A)      echo "A"      ;; $KEY_B)      echo "B"      ;;
+        $KEY_X)      echo "X"      ;; $KEY_Y)      echo "Y"      ;;
+        $KEY_L1)     echo "L1"     ;; $KEY_R1)     echo "R1"     ;;
+        $KEY_START)  echo "START"  ;; $KEY_SELECT) echo "SELECT" ;;
+    esac
+}
+
+# Convertit une sequence de noms en codes (espace-separated)
+_seq_to_codes() {
     local _r=""
-    for _b in $CONFIG_SEQUENCE; do
-        case "$_b" in
-            UP)     _r="$_r 103" ;; DOWN)   _r="$_r 108" ;;
-            LEFT)   _r="$_r 105" ;; RIGHT)  _r="$_r 106" ;;
-            A)      _r="$_r 28"  ;; B)      _r="$_r 14"  ;;
-            X)      _r="$_r 42"  ;; Y)      _r="$_r 21"  ;;
-            L|L1)   _r="$_r 310" ;; R|R1)   _r="$_r 311" ;;
-            START)  _r="$_r 315" ;; SELECT) _r="$_r 314" ;;
-        esac
+    for _b in $@; do
+        local _c=$(_btn_to_code "$_b")
+        [ -n "$_c" ] && _r="$_r $_c"
     done
     echo $_r
 }
 
-# Converti une suite de codes en noms de boutons
+# Convertit une suite de codes en noms de boutons
 _codes_to_names() {
     local _r=""
     for _c in $@; do
-        case "$_c" in
-            103) _r="$_r UP"     ;; 108) _r="$_r DOWN"   ;;
-            105) _r="$_r LEFT"   ;; 106) _r="$_r RIGHT"  ;;
-            28)  _r="$_r A"      ;; 14)  _r="$_r B"      ;;
-            42)  _r="$_r X"      ;; 21)  _r="$_r Y"      ;;
-            310) _r="$_r L1"     ;; 311) _r="$_r R1"     ;;
-            315) _r="$_r START"  ;; 314) _r="$_r SELECT" ;;
-        esac
+        local _n=$(_code_to_btn "$_c")
+        [ -n "$_n" ] && _r="$_r $_n"
     done
     echo $_r
 }
+
+# Normalise un keycode (variantes hardware -> code canonique)
+_norm_key() {
+    case "$1" in
+        57|97|305|$KEY_START) echo $KEY_A  ;;  # A et toutes ses variantes
+        *)                    echo "$1"    ;;
+    esac
+}
+
+# Normalise un keycode pour le mode password (L1/R1 -> LEFT/RIGHT en plus)
+_norm_key_pw() {
+    case "$1" in
+        57|97|305|$KEY_START) echo $KEY_A     ;;
+        $KEY_L1)              echo $KEY_LEFT  ;;
+        $KEY_R1)              echo $KEY_RIGHT ;;
+        *)                    echo "$1"       ;;
+    esac
+}
+
+# =============================================================
+#  Lecteurs d'input (start/stop factorise)
+# =============================================================
+KEY_FILE=/tmp/dualboot_key
+
+# Demarre les lecteurs sur tous les /dev/input/event* disponibles
+# $1 = fichier destination (defaut: KEY_FILE)
+# $2 = "pw" pour normalisation password, sinon raw
+# Retourne les PIDs dans _STARTED_PIDS
+_start_readers() {
+    local _dest="${1:-$KEY_FILE}"
+    local _mode="${2:-raw}"
+    _STARTED_PIDS=""
+    rm -f "$_dest"
+    for _ev in /dev/input/event0 /dev/input/event1 /dev/input/event2 /dev/input/event3; do
+        if [ -c "$_ev" ]; then
+            if [ "$_mode" = "pw" ]; then
+                (
+                    while true; do
+                        evt=$(dd if="$_ev" bs=16 count=1 2>/dev/null | od -An -tu2 -v)
+                        set -- $evt
+                        if [ $# -ge 7 ] && [ "$5" = "1" ] && [ "$7" = "1" ]; then
+                            _nk=$(_norm_key_pw "$6")
+                            echo "$_nk" >> "$_dest"
+                        fi
+                    done
+                ) &
+            else
+                (
+                    while true; do
+                        evt=$(dd if="$_ev" bs=16 count=1 2>/dev/null | od -An -tu2 -v)
+                        set -- $evt
+                        if [ $# -ge 7 ] && [ "$5" = "1" ] && [ "$7" = "1" ]; then
+                            echo "$6" >> "$_dest"
+                            log "KEY=$6 from $_ev"
+                        fi
+                    done
+                ) &
+            fi
+            _STARTED_PIDS="$_STARTED_PIDS $!"
+        fi
+    done
+    log "Readers started [$_mode] -> $_dest (PIDs:$_STARTED_PIDS)"
+}
+
+# Arrete une liste de PIDs de lecteurs et nettoie les sous-processus
+# $1 = liste de PIDs
+_stop_readers() {
+    local _pids="$1"
+    for _p in $_pids; do
+        kill "$_p" 2>/dev/null
+    done
+    sleep 0.2
+    # dd bloquant sur /dev/input/event* survit au kill du subshell parent
+    # et consomme les evenements clavier destines aux nouveaux readers
+    killall dd 2>/dev/null
+    killall od 2>/dev/null
+    for _p in $_pids; do
+        kill -9 "$_p" 2>/dev/null
+    done
+    sleep 0.1
+}
+
+# =============================================================
+#  Presets vibration (factorises)
+# =============================================================
+_apply_vib_preset() {
+    case "$1" in
+        0) VIBRATION_POWER=0;  VIBRATION_SELECT=0;   VIBRATION_CONFIRM=0   ;;
+        1) VIBRATION_POWER=15; VIBRATION_SELECT=40;  VIBRATION_CONFIRM=80  ;;
+        2) VIBRATION_POWER=25; VIBRATION_SELECT=60;  VIBRATION_CONFIRM=100 ;;
+        3) VIBRATION_POWER=50; VIBRATION_SELECT=100; VIBRATION_CONFIRM=200 ;;
+    esac
+}
+
+# =============================================================
+#  MENU DE CONFIGURATION (acces par X dans le menu boot)
+# =============================================================
 
 # Sauvegarde la configuration courante dans dualboot.cfg
 do_save_config() {
@@ -167,6 +324,11 @@ do_save_config() {
     } > "$CONFIG"
     sync
     log "Config saved: PP=$PASSWORD_PROTECT VP=$VIBRATION_POWER PW='$PASSWORD_SEQUENCE' CS='$CONFIG_SEQUENCE'"
+}
+
+# Rechargement securise de la config (pour annulation)
+_reload_config() {
+    _safe_read_cfg "$CONFIG"
 }
 
 # Attend une touche dans KEY_FILE
@@ -192,7 +354,7 @@ check_config_access() {
     > "$KEY_FILE"
 
     local _expected
-    _expected=$(_cfg_to_codes)
+    _expected=$(_seq_to_codes $CONFIG_SEQUENCE)
     local _elen
     _elen=$(echo $_expected | wc -w)
 
@@ -211,8 +373,8 @@ check_config_access() {
         local _k
         _k=$(_norm_key "$_raw")
         case "$_k" in
-            14) log "Config access: annule (B)"; vibrate 100; return 1 ;;
-            28) break ;;
+            $KEY_SELECT) log "Config access: annule (SELECT)"; vibrate 100; return 1 ;;
+            $KEY_A) break ;;
             *)  _pressed="$_pressed $_k"
                 _pcount=$((_pcount+1))
                 vibrate 25
@@ -246,21 +408,24 @@ cfg_set_protect() {
         _raw=$(_wait_cfg_key 1) || continue
         _k=$(_norm_key "$_raw")
         case "$_k" in
-            105) _idx=$(( (_idx-1+4) % 4 ))
-                 show_menu "config_protect_${_idx}"
-                 vibrate "$VIBRATION_SELECT" ;;
-            106) _idx=$(( (_idx+1) % 4 ))
-                 show_menu "config_protect_${_idx}"
-                 vibrate "$VIBRATION_SELECT" ;;
-            28)  case $_idx in
-                     0) PASSWORD_PROTECT="none"    ;;
-                     1) PASSWORD_PROTECT="onion"   ;;
-                     2) PASSWORD_PROTECT="telmios" ;;
-                     3) PASSWORD_PROTECT="both"    ;;
-                 esac
-                 vibrate "$VIBRATION_CONFIRM"
-                 log "Config: protect=$PASSWORD_PROTECT"; return ;;
-            14)  return ;;
+            $KEY_LEFT)
+                _idx=$(( (_idx-1+4) % 4 ))
+                show_menu "config_protect_${_idx}"
+                vibrate "$VIBRATION_SELECT" ;;
+            $KEY_RIGHT)
+                _idx=$(( (_idx+1) % 4 ))
+                show_menu "config_protect_${_idx}"
+                vibrate "$VIBRATION_SELECT" ;;
+            $KEY_A)
+                case $_idx in
+                    0) PASSWORD_PROTECT="none"    ;;
+                    1) PASSWORD_PROTECT="onion"   ;;
+                    2) PASSWORD_PROTECT="telmios" ;;
+                    3) PASSWORD_PROTECT="both"    ;;
+                esac
+                vibrate "$VIBRATION_CONFIRM"
+                log "Config: protect=$PASSWORD_PROTECT"; return ;;
+            $KEY_SELECT)  return ;;
         esac
     done
 }
@@ -288,34 +453,23 @@ cfg_set_vibration() {
         _raw=$(_wait_cfg_key 1) || continue
         _k=$(_norm_key "$_raw")
         case "$_k" in
-            105) _idx=$(( (_idx-1+4) % 4 ))
-                 show_menu "config_vib_${_idx}"
-                 case $_idx in
-                     0) VIBRATION_POWER=0;  VIBRATION_SELECT=0;   VIBRATION_CONFIRM=0   ;;
-                     1) VIBRATION_POWER=15; VIBRATION_SELECT=40;  VIBRATION_CONFIRM=80  ;;
-                     2) VIBRATION_POWER=25; VIBRATION_SELECT=60;  VIBRATION_CONFIRM=100 ;;
-                     3) VIBRATION_POWER=50; VIBRATION_SELECT=100; VIBRATION_CONFIRM=200 ;;
-                 esac
-                 [ "$VIBRATION_POWER" -gt 0 ] && vibrate "$VIBRATION_SELECT" ;;
-            106) _idx=$(( (_idx+1) % 4 ))
-                 show_menu "config_vib_${_idx}"
-                 case $_idx in
-                     0) VIBRATION_POWER=0;  VIBRATION_SELECT=0;   VIBRATION_CONFIRM=0   ;;
-                     1) VIBRATION_POWER=15; VIBRATION_SELECT=40;  VIBRATION_CONFIRM=80  ;;
-                     2) VIBRATION_POWER=25; VIBRATION_SELECT=60;  VIBRATION_CONFIRM=100 ;;
-                     3) VIBRATION_POWER=50; VIBRATION_SELECT=100; VIBRATION_CONFIRM=200 ;;
-                 esac
-                 [ "$VIBRATION_POWER" -gt 0 ] && vibrate "$VIBRATION_SELECT" ;;
-            28)  case $_idx in
-                     0) VIBRATION_POWER=0;  VIBRATION_SELECT=0;   VIBRATION_CONFIRM=0   ;;
-                     1) VIBRATION_POWER=15; VIBRATION_SELECT=40;  VIBRATION_CONFIRM=80  ;;
-                     2) VIBRATION_POWER=25; VIBRATION_SELECT=60;  VIBRATION_CONFIRM=100 ;;
-                     3) VIBRATION_POWER=50; VIBRATION_SELECT=100; VIBRATION_CONFIRM=200 ;;
-                 esac
-                 [ "$VIBRATION_POWER" -gt 0 ] && vibrate "$VIBRATION_CONFIRM"
-                 log "Config: vib preset=$_idx power=$VIBRATION_POWER"; return ;;
-            14)  VIBRATION_POWER="$_op"; VIBRATION_SELECT="$_os"; VIBRATION_CONFIRM="$_oc"
-                 return ;;
+            $KEY_LEFT)
+                _idx=$(( (_idx-1+4) % 4 ))
+                show_menu "config_vib_${_idx}"
+                _apply_vib_preset $_idx
+                [ "$VIBRATION_POWER" -gt 0 ] && vibrate "$VIBRATION_SELECT" ;;
+            $KEY_RIGHT)
+                _idx=$(( (_idx+1) % 4 ))
+                show_menu "config_vib_${_idx}"
+                _apply_vib_preset $_idx
+                [ "$VIBRATION_POWER" -gt 0 ] && vibrate "$VIBRATION_SELECT" ;;
+            $KEY_A)
+                _apply_vib_preset $_idx
+                [ "$VIBRATION_POWER" -gt 0 ] && vibrate "$VIBRATION_CONFIRM"
+                log "Config: vib preset=$_idx power=$VIBRATION_POWER"; return ;;
+            $KEY_SELECT)
+                VIBRATION_POWER="$_op"; VIBRATION_SELECT="$_os"; VIBRATION_CONFIRM="$_oc"
+                return ;;
         esac
     done
 }
@@ -336,9 +490,9 @@ cfg_enter_sequence() {
         _raw=$(_wait_cfg_key 1) || continue
         _k=$(_norm_key "$_raw")
         case "$_k" in
-            14)  return 1 ;;
-            28)  break    ;;
-            103|108|105|106|310|311|42|21|314|315)
+            $KEY_SELECT)  return 1 ;;
+            $KEY_A)       break    ;;
+            $KEY_UP|$KEY_DOWN|$KEY_LEFT|$KEY_RIGHT|$KEY_L1|$KEY_R1|$KEY_X|$KEY_Y|$KEY_SELECT|$KEY_START)
                 _codes="$_codes $_k"
                 _count=$((_count+1))
                 vibrate 25 ;;
@@ -365,15 +519,15 @@ run_config_menu() {
         _k=$(_norm_key "$_raw")
 
         case "$_k" in
-            103)  # UP
+            $KEY_UP)
                 _item=$(( (_item-1+_max) % _max ))
                 show_menu "config_main_${_item}"
                 vibrate "$VIBRATION_SELECT" ;;
-            108)  # DOWN
+            $KEY_DOWN)
                 _item=$(( (_item+1) % _max ))
                 show_menu "config_main_${_item}"
                 vibrate "$VIBRATION_SELECT" ;;
-            28)   # A = selectionner
+            $KEY_A)
                 case $_item in
                     0)  cfg_set_protect
                         _modified=1 ;;
@@ -398,14 +552,14 @@ run_config_menu() {
                         log "Config: sauvegarde et sortie"
                         return ;;
                     5)  # Quitter sans sauvegarder
-                        [ "$_modified" -eq 1 ] && . "$CONFIG" 2>/dev/null
+                        [ "$_modified" -eq 1 ] && _reload_config
                         log "Config: sortie sans sauvegarde"
                         return ;;
                 esac
                 show_menu "config_main_${_item}" ;;
-            14)   # B = quitter sans sauvegarder
-                [ "$_modified" -eq 1 ] && . "$CONFIG" 2>/dev/null
-                log "Config: B - sortie sans sauvegarde"
+            $KEY_SELECT)
+                [ "$_modified" -eq 1 ] && _reload_config
+                log "Config: SELECT - sortie sans sauvegarde"
                 return ;;
         esac
     done
@@ -487,27 +641,9 @@ for d in /dev/input/event*; do
     [ -c "$d" ] && log "  found: $d"
 done
 
-KEY_FILE=/tmp/dualboot_key
 rm -f "$KEY_FILE"
-
-READER_PIDS=""
-for evt_dev in /dev/input/event0 /dev/input/event1 /dev/input/event2 /dev/input/event3; do
-    if [ -c "$evt_dev" ]; then
-        log "Reading from $evt_dev"
-        (
-            while true; do
-                evt=$(dd if="$evt_dev" bs=16 count=1 2>/dev/null | od -An -tu2 -v)
-                set -- $evt
-                if [ $# -ge 7 ] && [ "$5" = "1" ] && [ "$7" = "1" ]; then
-                    echo "$6" >> "$KEY_FILE"
-                    log "KEY=$6 from $evt_dev"
-                fi
-            done
-        ) &
-        READER_PIDS="$READER_PIDS $!"
-    fi
-done
-log "Input readers started (PIDs:$READER_PIDS). Waiting for keys..."
+_start_readers "$KEY_FILE" "raw"
+READER_PIDS="$_STARTED_PIDS"
 
 # ---- Boucle menu (60s timeout) ----
 TIMEOUT=600
@@ -522,9 +658,9 @@ while [ $COUNTER -lt $TIMEOUT ]; do
         PREV="$SELECTION"
 
         case "$KEY" in
-            105|310) SELECTION="onion" ;;          # LEFT / L1
-            106|311) SELECTION="telmios" ;;        # RIGHT / R1
-            28|57|97|305|315)                      # A/ENTER/SPACE/RCTRL/START
+            $KEY_LEFT|$KEY_L1) SELECTION="onion" ;;
+            $KEY_RIGHT|$KEY_R1) SELECTION="telmios" ;;
+            $KEY_A|57|97|305|$KEY_START)
                 # Verifier si protection active pour cet OS
                 _need_pw=0
                 case "$PASSWORD_PROTECT" in
@@ -541,60 +677,21 @@ while [ $COUNTER -lt $TIMEOUT ]; do
                 log "Password requis pour $SELECTION"
 
                 # Suspendre lecteurs menu
-                for _rp in $READER_PIDS; do kill "$_rp" 2>/dev/null; done
-                sleep 0.2; killall dd 2>/dev/null; killall od 2>/dev/null; sleep 0.1
+                _stop_readers "$READER_PIDS"
                 > "$KEY_FILE"
 
                 # Afficher ecran verrouille
                 show_menu "locked_${SELECTION}"
 
-                # Construire sequence attendue (noms boutons -> codes)
-                _expected=""
-                for _btn in $PASSWORD_SEQUENCE; do
-                    case "$_btn" in
-                        UP)     _expected="$_expected 103" ;;
-                        DOWN)   _expected="$_expected 108" ;;
-                        LEFT)   _expected="$_expected 105" ;;
-                        RIGHT)  _expected="$_expected 106" ;;
-                        A)      _expected="$_expected 28"  ;;
-                        B)      _expected="$_expected 14"  ;;
-                        X)      _expected="$_expected 42"  ;;
-                        Y)      _expected="$_expected 21"  ;;
-                        L|L1)   _expected="$_expected 310" ;;
-                        R|R1)   _expected="$_expected 311" ;;
-                        START)  _expected="$_expected 315" ;;
-                        SELECT) _expected="$_expected 314" ;;
-                    esac
-                done
+                # Construire sequence attendue
+                _expected=$(_seq_to_codes $PASSWORD_SEQUENCE)
                 _expected=$(echo $_expected)
                 _seq_len=$(echo "$_expected" | wc -w)
 
-                # Demarrer lecteurs password (fichier separe)
+                # Demarrer lecteurs password (fichier separe, normalisation pw)
                 PW_KEY=/tmp/dualboot_pwkey
-                rm -f "$PW_KEY"
-                PW_PIDS=""
-                for _ev in /dev/input/event0 /dev/input/event1 /dev/input/event2 /dev/input/event3; do
-                    if [ -c "$_ev" ]; then
-                        (
-                            while true; do
-                                evt=$(dd if="$_ev" bs=16 count=1 2>/dev/null | od -An -tu2 -v)
-                                set -- $evt
-                                if [ $# -ge 7 ] && [ "$5" = "1" ] && [ "$7" = "1" ]; then
-                                    # Normaliser les keycodes (variantes -> code canonique)
-                                    _nk="$6"
-                                    case "$_nk" in
-                                        57|97|305|315) _nk=28  ;;  # A (toutes variantes)
-                                        1|304)         _nk=14  ;;  # B (toutes variantes)
-                                        310)           _nk=105 ;;  # L1 -> LEFT
-                                        311)           _nk=106 ;;  # R1 -> RIGHT
-                                    esac
-                                    echo "$_nk" >> "$PW_KEY"
-                                fi
-                            done
-                        ) &
-                        PW_PIDS="$PW_PIDS $!"
-                    fi
-                done
+                _start_readers "$PW_KEY" "pw"
+                PW_PIDS="$_STARTED_PIDS"
 
                 # Attendre la sequence (30s max)
                 _pressed=""
@@ -605,8 +702,8 @@ while [ $COUNTER -lt $TIMEOUT ]; do
                     if [ -s "$PW_KEY" ]; then
                         _k=$(tail -1 "$PW_KEY" 2>/dev/null)
                         > "$PW_KEY"
-                        # 14 = B normalise = annuler
-                        if [ "$_k" = "14" ]; then
+                        # SELECT = annuler
+                        if [ "$_k" = "$KEY_SELECT" ]; then
                             _pw_cancel=1; break
                         fi
                         _pressed="$_pressed $_k"
@@ -619,8 +716,7 @@ while [ $COUNTER -lt $TIMEOUT ]; do
                 done
 
                 # Arreter lecteurs password
-                for _p in $PW_PIDS; do kill "$_p" 2>/dev/null; done
-                sleep 0.2; killall dd 2>/dev/null; killall od 2>/dev/null; sleep 0.1
+                _stop_readers "$PW_PIDS"
                 rm -f "$PW_KEY"
 
                 _pressed=$(echo $_pressed)
@@ -636,35 +732,15 @@ while [ $COUNTER -lt $TIMEOUT ]; do
                     vibrate 200; sleep 0.15; vibrate 200
                     show_menu "$SELECTION"
                     # Redemarrer lecteurs menu
-                    READER_PIDS=""
-                    for evt_dev in /dev/input/event0 /dev/input/event1 /dev/input/event2 /dev/input/event3; do
-                        if [ -c "$evt_dev" ]; then
-                            (
-                                while true; do
-                                    evt=$(dd if="$evt_dev" bs=16 count=1 2>/dev/null | od -An -tu2 -v)
-                                    set -- $evt
-                                    if [ $# -ge 7 ] && [ "$5" = "1" ] && [ "$7" = "1" ]; then
-                                        echo "$6" >> "$KEY_FILE"
-                                        log "KEY=$6 from $evt_dev"
-                                    fi
-                                done
-                            ) &
-                            READER_PIDS="$READER_PIDS $!"
-                        fi
-                    done
+                    _start_readers "$KEY_FILE" "raw"
+                    READER_PIDS="$_STARTED_PIDS"
                     log "Lecteurs menu redemarres (PW echec)"
                 fi
                 ;;
-            42)                                    # X -> Mode configuration
+            $KEY_X)
                 log "X: mode config"
                 enter_config_mode
                 COUNTER=0 ;;
-            14|1|304)                              # B/BACKSPACE/ESC
-                _s=$(cat "$CHOICE_FILE" 2>/dev/null || echo "onion")
-                case "$_s" in onion|telmios) SELECTION="$_s" ;; *) SELECTION="onion" ;; esac
-                CONFIRM_METHOD="last"
-                log "B: last=$SELECTION"; break
-                ;;
         esac
 
         if [ "$SELECTION" != "$PREV" ]; then
@@ -681,11 +757,7 @@ done
 log "Loop done. COUNTER=$COUNTER method=$CONFIRM_METHOD selection=$SELECTION"
 
 # ---- Cleanup readers ----
-for _rpid in $READER_PIDS; do kill "$_rpid" 2>/dev/null; done
-sleep 0.3
-killall dd 2>/dev/null
-killall od 2>/dev/null
-sleep 0.1
+_stop_readers "$READER_PIDS"
 rm -f "$KEY_FILE"
 
 # ---- Sauvegarder le choix (sync pour eviter corruption) ----
@@ -760,6 +832,7 @@ else
     unset EGL_VIDEODRIVER
     log "Exec $SELECTION: $TARGET"
     exec "$TARGET" > "$OS_DIR/.tmp_update/logs/os_debug.log" 2>&1
+    # Si exec echoue (fichier non executable, etc.), reboot de secours
     log "ERREUR: exec echoue! Reboot dans 5s..."
     sleep 5
     reboot

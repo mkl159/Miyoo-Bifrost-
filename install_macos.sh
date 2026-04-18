@@ -87,17 +87,92 @@ case "$lang_choice" in
     *) LANG_CODE="FR" ;;
 esac
 log "Langue: $LANG_CODE"
+
+# ------------------------------------------------------------------
+# Localized messages
+# ------------------------------------------------------------------
+case "$LANG_CODE" in
+    EN)
+        MSG_SELECT_SD="Select your SD CARD (the mounted folder in /Volumes/)..."
+        MSG_SELECT_ONION="Select the ONIONOS folder..."
+        MSG_SELECT_TELMI="Select the TELMIOS folder..."
+        MSG_CANCEL="Cancelled."
+        MSG_FAT32_WARN="!! WARNING: The card is not FAT32 !!"
+        MSG_FAT32_REQ="The Miyoo firmware requires FAT32 to boot."
+        MSG_FAT32_EXFAT="An exFAT or NTFS card will NOT boot."
+        MSG_FAT32_ASK="Format to FAT32 now? (y/n) : "
+        MSG_FAT32_STOP="STOPPED. Format the card to FAT32 before continuing."
+        MSG_FAT32_OK="FAT32 detected — perfect!"
+        MSG_FAT32_DONE="FAT32 OK — New mount point:"
+        MSG_SUCCESS="INSTALLATION SUCCESSFUL!"
+        MSG_MISSING="missing file(s)"
+        MSG_EJECT="Insert the SD card into your Miyoo Mini / Mini Plus."
+        MSG_BOOT_TITLE="At startup:"
+        MSG_BOOT_LR="D-pad left/right  = switch OS"
+        MSG_BOOT_A="A                = confirm"
+        MSG_BOOT_B="B                = relaunch last OS"
+        MSG_BOOT_X="X (from boot)    = configuration menu"
+        MSG_CHECK="Make sure the Onion* and Telmi* folders are in:"
+        MSG_LOG="Log saved:"
+        ;;
+    ES)
+        MSG_SELECT_SD="Selecciona tu TARJETA SD (la carpeta montada en /Volumes/)..."
+        MSG_SELECT_ONION="Selecciona la carpeta ONIONOS..."
+        MSG_SELECT_TELMI="Selecciona la carpeta TELMIOS..."
+        MSG_CANCEL="Cancelado."
+        MSG_FAT32_WARN="!! ATENCION: La tarjeta no esta en FAT32 !!"
+        MSG_FAT32_REQ="El firmware Miyoo requiere FAT32 para arrancar."
+        MSG_FAT32_EXFAT="Una tarjeta exFAT o NTFS NO arrancara."
+        MSG_FAT32_ASK="Formatear a FAT32 ahora? (s/n) : "
+        MSG_FAT32_STOP="DETENIDO. Formatea la tarjeta en FAT32 antes de continuar."
+        MSG_FAT32_OK="FAT32 detectado — perfecto!"
+        MSG_FAT32_DONE="FAT32 OK — Nuevo punto de montaje:"
+        MSG_SUCCESS="INSTALACION EXITOSA!"
+        MSG_MISSING="archivo(s) faltante(s)"
+        MSG_EJECT="Inserta la tarjeta SD en tu Miyoo Mini / Mini Plus."
+        MSG_BOOT_TITLE="Al encender:"
+        MSG_BOOT_LR="D-pad izq/der    = cambiar OS"
+        MSG_BOOT_A="A                = confirmar"
+        MSG_BOOT_B="B                = relanzar ultimo OS"
+        MSG_BOOT_X="X (desde el boot)= menu de configuracion"
+        MSG_CHECK="Verifica que las carpetas Onion* y Telmi* esten en:"
+        MSG_LOG="Log guardado:"
+        ;;
+    *)
+        MSG_SELECT_SD="Selectionnez votre CARTE SD (le dossier monte dans /Volumes/)..."
+        MSG_SELECT_ONION="Selectionnez le dossier ONIONOS..."
+        MSG_SELECT_TELMI="Selectionnez le dossier TELMIOS..."
+        MSG_CANCEL="Annule."
+        MSG_FAT32_WARN="!! ATTENTION : La carte n'est pas en FAT32 !!"
+        MSG_FAT32_REQ="Le firmware Miyoo requiert FAT32 pour demarrer."
+        MSG_FAT32_EXFAT="Une carte exFAT ou NTFS ne bootera PAS."
+        MSG_FAT32_ASK="Formater en FAT32 maintenant ? (o/n) : "
+        MSG_FAT32_STOP="ARRET. Formate la carte en FAT32 avant de continuer."
+        MSG_FAT32_OK="FAT32 detecte — parfait !"
+        MSG_FAT32_DONE="FAT32 OK — Nouveau point de montage:"
+        MSG_SUCCESS="INSTALLATION REUSSIE !"
+        MSG_MISSING="fichier(s) manquant(s)"
+        MSG_EJECT="Insere la carte SD dans le Miyoo Mini / Mini Plus."
+        MSG_BOOT_TITLE="Au demarrage :"
+        MSG_BOOT_LR="D-pad gauche/droite  = changer d'OS"
+        MSG_BOOT_A="A                    = confirmer"
+        MSG_BOOT_B="B                    = relancer le dernier OS"
+        MSG_BOOT_X="X (depuis le boot)   = menu de configuration"
+        MSG_CHECK="Verifie les dossiers Onion* et Telmi* dans :"
+        MSG_LOG="Log sauvegarde :"
+        ;;
+esac
 echo ""
 
 # ------------------------------------------------------------------
 # Select SD card
 # ------------------------------------------------------------------
-echo "  Selectionnez votre CARTE SD (le dossier monte dans /Volumes/)..."
+echo "  $MSG_SELECT_SD"
 log "Ouverture selecteur carte SD"
-SD="$(pick_folder "Selectionnez votre carte SD (/Volumes/...)" "/Volumes")"
+SD="$(pick_folder "$MSG_SELECT_SD" "/Volumes")"
 if [[ -z "$SD" ]]; then
     log "SD: annule" WARN
-    echo "  Annule." && exit 1
+    echo "  $MSG_CANCEL" && exit 1
 fi
 log "SD: $SD"
 echo "  SD: $SD"
@@ -123,11 +198,11 @@ echo "  Format: $fs_name"
 
 if [[ "$fs_name" != *"FAT32"* && "$fs_name" != *"MS-DOS"* ]]; then
     echo ""
-    echo "  !! ATTENTION : La carte n'est pas en FAT32 !!"
-    echo "  Le firmware Miyoo requiert FAT32 pour demarrer."
-    echo "  Une carte exFAT ou NTFS ne bootera PAS."
+    echo "  $MSG_FAT32_WARN"
+    echo "  $MSG_FAT32_REQ"
+    echo "  $MSG_FAT32_EXFAT"
     echo ""
-    read -rp "  Formater en FAT32 maintenant ? (o/n) : " do_format
+    read -rp "  $MSG_FAT32_ASK" do_format
     if [[ "$do_format" =~ ^[oOyYsS]$ ]]; then
         log "Formatage FAT32: $disk_node"
         echo "  Formatage en cours (diskutil eraseDisk)..."
@@ -138,25 +213,25 @@ if [[ "$fs_name" != *"FAT32"* && "$fs_name" != *"MS-DOS"* ]]; then
         sleep 2
         SD="/Volumes/MIYOOBOOT"
         log "Nouveau point de montage: $SD"
-        echo "  FAT32 OK — Nouveau point de montage: $SD"
+        echo "  $MSG_FAT32_DONE $SD"
     else
         log "Formatage refuse" WARN
-        echo "  ARRET. Formate la carte en FAT32 avant de continuer."
+        echo "  $MSG_FAT32_STOP"
         exit 1
     fi
 else
-    echo "  FAT32 detecte — parfait !"
+    echo "  $MSG_FAT32_OK"
 fi
 echo ""
 
 # ------------------------------------------------------------------
 # Select OnionOS
 # ------------------------------------------------------------------
-echo "  Selectionnez le dossier ONIONOS..."
+echo "  $MSG_SELECT_ONION"
 log "Ouverture selecteur OnionOS"
-SRC_ONION="$(pick_folder "Selectionnez le dossier OnionOS" "$SCRIPT_DIR")"
+SRC_ONION="$(pick_folder "$MSG_SELECT_ONION" "$SCRIPT_DIR")"
 if [[ -z "$SRC_ONION" ]]; then
-    log "OnionOS: annule" WARN; echo "  Annule."; exit 1
+    log "OnionOS: annule" WARN; echo "  $MSG_CANCEL"; exit 1
 fi
 log "OnionOS: $SRC_ONION"
 echo "  OnionOS: $SRC_ONION"
@@ -165,11 +240,11 @@ echo ""
 # ------------------------------------------------------------------
 # Select TelmiOS
 # ------------------------------------------------------------------
-echo "  Selectionnez le dossier TELMIOS..."
+echo "  $MSG_SELECT_TELMI"
 log "Ouverture selecteur TelmiOS"
-SRC_TELMIOS="$(pick_folder "Selectionnez le dossier TelmiOS" "$SCRIPT_DIR")"
+SRC_TELMIOS="$(pick_folder "$MSG_SELECT_TELMI" "$SCRIPT_DIR")"
 if [[ -z "$SRC_TELMIOS" ]]; then
-    log "TelmiOS: annule" WARN; echo "  Annule."; exit 1
+    log "TelmiOS: annule" WARN; echo "  $MSG_CANCEL"; exit 1
 fi
 log "TelmiOS: $SRC_TELMIOS"
 echo "  TelmiOS: $SRC_TELMIOS"
@@ -320,6 +395,12 @@ ok
 
 # ==================================================================
 step "ETAPE 8/8 — Generation des images du menu de boot..."
+# Verifier si les images .raw sont deja presentes (bundlees dans DualBoot, copiees etape 2)
+if [[ -f "$SD/.tmp_update/res/bootmenu_onion_FR.raw" ]]; then
+    log_only "Images .raw deja presentes (bundlees) - generation Python ignoree"
+    echo "    OK - Images deja presentes (bundlees)"
+    ok
+else
 PY_SCRIPT="$SCRIPT_DIR/generate_bootmenu.py"
 if [[ ! -f "$PY_SCRIPT" ]]; then
     warn "generate_bootmenu.py non trouve: $PY_SCRIPT"
@@ -352,6 +433,7 @@ else
         fi
     fi
 fi
+fi # fin du bloc else (images non bundlees)
 
 # ==================================================================
 echo ""
@@ -408,25 +490,25 @@ echo ""
 echo "  ========================================"
 if [[ $errors -eq 0 ]]; then
     log "=== INSTALLATION REUSSIE ==="
-    echo "  INSTALLATION REUSSIE !"
+    echo "  $MSG_SUCCESS"
     echo "  ========================================"
     echo ""
-    echo "  Insere la carte SD dans le Miyoo Mini / Mini Plus."
+    echo "  $MSG_EJECT"
     echo ""
-    echo "  Au demarrage :"
-    echo "    D-pad gauche/droite  = changer d'OS"
-    echo "    A                    = confirmer"
-    echo "    B                    = relancer le dernier OS"
-    echo "    X (depuis le boot)   = menu de configuration"
+    echo "  $MSG_BOOT_TITLE"
+    echo "    $MSG_BOOT_LR"
+    echo "    $MSG_BOOT_A"
+    echo "    $MSG_BOOT_B"
+    echo "    $MSG_BOOT_X"
 else
     log "=== INSTALLATION INCOMPLETE ($errors erreur(s)) ===" WARN
-    echo "  $errors fichier(s) manquant(s)"
+    echo "  $errors $MSG_MISSING"
     echo "  ========================================"
-    echo "  Verifie les dossiers Onion* et Telmi* dans :"
+    echo "  $MSG_CHECK"
     echo "  $SCRIPT_DIR"
 fi
 
 echo ""
 log "Log complet: $LOG_FILE"
-echo "  Log sauvegarde : $LOG_FILE"
+echo "  $MSG_LOG $LOG_FILE"
 echo ""

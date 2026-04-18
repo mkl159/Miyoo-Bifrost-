@@ -22,7 +22,6 @@ except ImportError:
     sys.exit(1)
 
 # ── Constantes ────────────────────────────────────────────────
-W, H = 640, 480
 OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Palette couleurs
@@ -61,11 +60,11 @@ LANGUAGES = {
         ],
         "icon_sel":    "> Appuyer A pour lancer",
         "icon_nosel":  "< D-pad pour choisir",
-        "help": [("< >", "Choisir l'OS"), ("A", "Confirmer"), ("B", "Dernier choix"), ("X", "Config")],
-        "footer":      "Dernier OS choisi relance automatiquement si B est presse",
+        "help": [("< >", "Choisir l'OS"), ("A", "Confirmer"), ("X", "Config")],
+        "footer":      "Timeout : le dernier OS choisi relance automatiquement",
         "locked_title":  "ACCES PROTEGE",
         "locked_sub":    "Entrez le code secret",
-        "locked_cancel": "B = Annuler",
+        "locked_cancel": "SELECT = Annuler",
         "locked_hint":   "Entrez la combinaison de touches configuree",
     },
     "EN": {
@@ -85,11 +84,11 @@ LANGUAGES = {
         ],
         "icon_sel":    "> Press A to launch",
         "icon_nosel":  "< D-pad to choose",
-        "help": [("< >", "Choose OS"), ("A", "Confirm"), ("B", "Last choice"), ("X", "Config")],
-        "footer":      "Last chosen OS will auto-boot if B is pressed",
+        "help": [("< >", "Choose OS"), ("A", "Confirm"), ("X", "Config")],
+        "footer":      "Timeout: last chosen OS will auto-boot",
         "locked_title":  "PROTECTED ACCESS",
         "locked_sub":    "Enter the secret code",
-        "locked_cancel": "B = Cancel",
+        "locked_cancel": "SELECT = Cancel",
         "locked_hint":   "Enter the configured button combination",
     },
     "ES": {
@@ -109,11 +108,11 @@ LANGUAGES = {
         ],
         "icon_sel":    "> Pulsar A para iniciar",
         "icon_nosel":  "< D-pad para elegir",
-        "help": [("< >", "Elegir OS"), ("A", "Confirmar"), ("B", "Ultima eleccion"), ("X", "Config")],
-        "footer":      "El ultimo OS elegido arrancara automaticamente si se pulsa B",
+        "help": [("< >", "Elegir OS"), ("A", "Confirmar"), ("X", "Config")],
+        "footer":      "Timeout: el ultimo OS elegido arrancara automaticamente",
         "locked_title":  "ACCESO PROTEGIDO",
         "locked_sub":    "Introduce el codigo secreto",
-        "locked_cancel": "B = Cancelar",
+        "locked_cancel": "SELECT = Cancelar",
         "locked_hint":   "Introduce la combinacion de botones configurada",
     },
 }
@@ -125,7 +124,7 @@ CONFIG_TEXTS = {
     "FR": {
         "title":          "CONFIGURATION BIFROST",
         "access_sub":     "Entrez le code administrateur",
-        "access_hint":    "Sequence de boutons  +  A pour confirmer   |   B = Annuler",
+        "access_hint":    "Sequence de boutons  +  A pour confirmer   |   SELECT = Annuler",
         "menu_items": [
             ("Verrouillage OS",        "Proteger un OS par code secret"),
             ("Code de verrouillage",   "Modifier la sequence de deverrouillage"),
@@ -134,7 +133,7 @@ CONFIG_TEXTS = {
             ("Sauvegarder et quitter", "Enregistrer toutes les modifications"),
             ("Annuler",                "Quitter sans sauvegarder"),
         ],
-        "menu_nav":       "Haut / Bas = Naviguer   |   A = Selectionner   |   B = Quitter",
+        "menu_nav":       "Haut / Bas = Naviguer   |   A = Selectionner   |   SELECT = Quitter",
         "protect_title":  "VERROUILLAGE OS",
         "protect_options": [
             ("Aucun",     "Demarrage libre, aucun code requis"),
@@ -149,13 +148,13 @@ CONFIG_TEXTS = {
             ("Moyenne",    "Vibrations standard  (defaut)"),
             ("Forte",      "Vibrations intenses"),
         ],
-        "choice_nav":     "Gauche / Droite = Choisir   |   A = Confirmer   |   B = Retour",
+        "choice_nav":     "Gauche / Droite = Choisir   |   A = Confirmer   |   SELECT = Retour",
         "pw_title":       "CODE DE VERROUILLAGE",
         "pw_sub":         "Entrez la nouvelle sequence secrete",
         "cfg_title":      "CODE ADMINISTRATEUR",
         "cfg_sub":        "Entrez le nouveau code d'administration",
         "entry_hint1":    "Appuyez sur les boutons de votre sequence  (max 8 boutons)",
-        "entry_hint2":    "A = Valider   |   B = Annuler",
+        "entry_hint2":    "A = Valider   |   SELECT = Annuler",
         "entry_btns":     "Boutons valides :  Haut  Bas  Gauche  Droite  X  Y  L  R  START  SELECT",
         "saved_title":    "CONFIGURATION SAUVEGARDEE !",
         "saved_sub":      "Les modifications ont ete enregistrees.",
@@ -163,7 +162,7 @@ CONFIG_TEXTS = {
     "EN": {
         "title":          "BIFROST CONFIGURATION",
         "access_sub":     "Enter admin code",
-        "access_hint":    "Button sequence  +  A to confirm   |   B = Cancel",
+        "access_hint":    "Button sequence  +  A to confirm   |   SELECT = Cancel",
         "menu_items": [
             ("OS Lock",             "Protect an OS with a secret code"),
             ("Lock code",           "Change the unlock sequence"),
@@ -172,7 +171,7 @@ CONFIG_TEXTS = {
             ("Save and exit",       "Save all changes"),
             ("Cancel",              "Exit without saving"),
         ],
-        "menu_nav":       "Up / Down = Navigate   |   A = Select   |   B = Exit",
+        "menu_nav":       "Up / Down = Navigate   |   A = Select   |   SELECT = Exit",
         "protect_title":  "OS LOCK MODE",
         "protect_options": [
             ("None",      "Free boot, no code required"),
@@ -187,13 +186,13 @@ CONFIG_TEXTS = {
             ("Medium",    "Standard vibrations  (default)"),
             ("Strong",    "Intense vibrations"),
         ],
-        "choice_nav":     "Left / Right = Choose   |   A = Confirm   |   B = Back",
+        "choice_nav":     "Left / Right = Choose   |   A = Confirm   |   SELECT = Back",
         "pw_title":       "LOCK CODE",
         "pw_sub":         "Enter the new secret sequence",
         "cfg_title":      "ADMIN CODE",
         "cfg_sub":        "Enter the new administration code",
         "entry_hint1":    "Press the buttons of your sequence  (max 8 buttons)",
-        "entry_hint2":    "A = Validate   |   B = Cancel",
+        "entry_hint2":    "A = Validate   |   SELECT = Cancel",
         "entry_btns":     "Valid buttons :  Up  Down  Left  Right  X  Y  L  R  START  SELECT",
         "saved_title":    "CONFIGURATION SAVED !",
         "saved_sub":      "Your changes have been saved.",
@@ -201,7 +200,7 @@ CONFIG_TEXTS = {
     "ES": {
         "title":          "CONFIGURACION BIFROST",
         "access_sub":     "Ingresa el codigo de administrador",
-        "access_hint":    "Secuencia de botones  +  A para confirmar   |   B = Cancelar",
+        "access_hint":    "Secuencia de botones  +  A para confirmar   |   SELECT = Cancelar",
         "menu_items": [
             ("Bloqueo OS",          "Proteger un OS con codigo secreto"),
             ("Codigo bloqueo",      "Cambiar la secuencia de desbloqueo"),
@@ -210,7 +209,7 @@ CONFIG_TEXTS = {
             ("Guardar y salir",     "Guardar todos los cambios"),
             ("Cancelar",            "Salir sin guardar"),
         ],
-        "menu_nav":       "Arriba / Abajo = Navegar   |   A = Seleccionar   |   B = Salir",
+        "menu_nav":       "Arriba / Abajo = Navegar   |   A = Seleccionar   |   SELECT = Salir",
         "protect_title":  "MODO BLOQUEO OS",
         "protect_options": [
             ("Ninguno",   "Arranque libre, sin codigo"),
@@ -225,13 +224,13 @@ CONFIG_TEXTS = {
             ("Media",       "Vibraciones estandar  (defecto)"),
             ("Fuerte",      "Vibraciones intensas"),
         ],
-        "choice_nav":     "Izq / Der = Elegir   |   A = Confirmar   |   B = Volver",
+        "choice_nav":     "Izq / Der = Elegir   |   A = Confirmar   |   SELECT = Volver",
         "pw_title":       "CODIGO DE BLOQUEO",
         "pw_sub":         "Ingresa la nueva secuencia secreta",
         "cfg_title":      "CODIGO ADMINISTRADOR",
         "cfg_sub":        "Ingresa el nuevo codigo de administracion",
         "entry_hint1":    "Pulsa los botones de tu secuencia  (max 8 botones)",
-        "entry_hint2":    "A = Validar   |   B = Cancelar",
+        "entry_hint2":    "A = Validar   |   SELECT = Cancelar",
         "entry_btns":     "Botones validos :  Arriba  Abajo  Izq  Der  X  Y  L  R  START  SELECT",
         "saved_title":    "CONFIGURACION GUARDADA !",
         "saved_sub":      "Los cambios han sido guardados.",
@@ -278,7 +277,7 @@ def get_font(size, bold=False):
                 continue
     return ImageFont.load_default()
 
-def text_center(draw, text, y, font, color, width=W):
+def text_center(draw, text, y, font, color, width):
     bbox = draw.textbbox((0, 0), text, font=font)
     tw = bbox[2] - bbox[0]
     x = (width - tw) // 2
@@ -287,20 +286,20 @@ def text_center(draw, text, y, font, color, width=W):
 
 # ── Createur menu principal ────────────────────────────────────
 
-def create_bootmenu(selected_os: str, lang: str = "FR") -> Image.Image:
+def create_bootmenu(selected_os: str, lang: str = "FR", w: int = 640, h: int = 480) -> Image.Image:
     ld = LANGUAGES.get(lang, LANGUAGES["FR"])
 
-    img = Image.new("RGB", (W, H))
+    img = Image.new("RGB", (w, h))
     draw = ImageDraw.Draw(img, "RGBA")
 
     # Fond degrade global
-    draw_gradient_rect(draw, 0, 0, W, H, C_BG_TOP, C_BG_BOT)
+    draw_gradient_rect(draw, 0, 0, w, h, C_BG_TOP, C_BG_BOT)
 
     # Barre titre
-    TITLE_H = 72
-    draw_gradient_rect(draw, 0, 0, W, TITLE_H, (15, 18, 32), (12, 15, 28))
+    TITLE_H = int(72 * h / 480)
+    draw_gradient_rect(draw, 0, 0, w, TITLE_H, (15, 18, 32), (12, 15, 28))
     for i, alpha in enumerate([60, 120, 60, 30]):
-        draw.line([(0, TITLE_H - 2 + i), (W, TITLE_H - 2 + i)],
+        draw.line([(0, TITLE_H - 2 + i), (w, TITLE_H - 2 + i)],
                   fill=(80, 120, 200, alpha))
 
     font_title = get_font(28, bold=True)
@@ -311,13 +310,13 @@ def create_bootmenu(selected_os: str, lang: str = "FR") -> Image.Image:
     font_hint  = get_font(12)
     font_info  = get_font(10)
 
-    text_center(draw, "MIYOO MINI+", 10, font_title, C_WHITE)
-    text_center(draw, ld["subtitle"], 44, font_sub, C_GRAY)
+    text_center(draw, "MIYOO MINI+", 10, font_title, C_WHITE, w)
+    text_center(draw, ld["subtitle"], 44, font_sub, C_GRAY, w)
 
     # Zone centrale
     PANEL_TOP  = TITLE_H + 18
-    PANEL_BOT  = H - 68
-    PANEL_MID  = W // 2
+    PANEL_BOT  = h - 68
+    PANEL_MID  = w // 2
     PADDING    = 16
     RADIUS     = 14
 
@@ -332,16 +331,14 @@ def create_bootmenu(selected_os: str, lang: str = "FR") -> Image.Image:
             "x1":     PANEL_MID - PADDING // 2,
             "accent": C_ONION_ACC,
             "title":  "OnionOS",
-            "ver":    "v4.3.1",
             "lines":  ld["panel_onion_lines"],
         },
         {
             "id":     "telmios",
             "x0":     PANEL_MID + PADDING // 2,
-            "x1":     W - PADDING,
+            "x1":     w - PADDING,
             "accent": C_TELMI_ACC,
             "title":  "TelmiOS",
-            "ver":    "v1.10.1",
             "lines":  ld["panel_telmios_lines"],
         },
     ]
@@ -392,21 +389,14 @@ def create_bootmenu(selected_os: str, lang: str = "FR") -> Image.Image:
         title_color = C_WHITE if is_sel else lerp_color(C_WHITE, C_DIM, 0.4)
         draw.text((cx - tw // 2, title_y), panel["title"], font=font_os, fill=title_color)
 
-        # Version
-        ver_y   = title_y + 34
-        font_ver = get_font(12)
-        bbox_v  = draw.textbbox((0, 0), panel["ver"], font=font_ver)
-        vw      = bbox_v[2] - bbox_v[0]
-        draw.text((cx - vw // 2, ver_y), panel["ver"],
-                  font=font_ver, fill=(*accent, 200 if is_sel else 100))
-
-        # Separateur
-        line_y = ver_y + 20
+        # Separateur (directement sous le titre, sans version)
+        line_y = title_y + 34
         draw.line([(x0 + 20, line_y), (x1 - 20, line_y)],
                   fill=(*accent, 80 if is_sel else 40))
 
-        # Lignes description
-        desc_y = line_y + 10
+        # Lignes description (plus d'espace grâce à la suppression de la version)
+        desc_y = line_y + 12
+        desc_spacing = 28
         for i, line in enumerate(panel["lines"]):
             line_color = C_WHITE if is_sel else C_DIM
             alpha_mult = 1.0 if is_sel else 0.6
@@ -417,7 +407,7 @@ def create_bootmenu(selected_os: str, lang: str = "FR") -> Image.Image:
                          fill=(*dot_color, int(200 * alpha_mult)))
             draw.text((dot_x + 10, desc_y), line, font=font_line,
                       fill=(*line_color, int(220 * alpha_mult)))
-            desc_y += 24
+            desc_y += desc_spacing
 
         # Indicateur bas
         status_y  = PANEL_BOT - 36
@@ -431,9 +421,9 @@ def create_bootmenu(selected_os: str, lang: str = "FR") -> Image.Image:
                   fill=(*accent, 200) if is_sel else (*C_DIM, 160))
 
     # Barre aide bas
-    HELP_Y = H - 56
-    draw_gradient_rect(draw, 0, HELP_Y, W, H, (12, 15, 28), (8, 10, 20))
-    draw.line([(0, HELP_Y), (W, HELP_Y)], fill=(*C_DIVIDER, 200))
+    HELP_Y = h - 56
+    draw_gradient_rect(draw, 0, HELP_Y, w, h, (12, 15, 28), (8, 10, 20))
+    draw.line([(0, HELP_Y), (w, HELP_Y)], fill=(*C_DIVIDER, 200))
 
     font_help_key = get_font(13, bold=True)
     font_help_txt = get_font(13)
@@ -445,7 +435,7 @@ def create_bootmenu(selected_os: str, lang: str = "FR") -> Image.Image:
         bt = draw.textbbox((0, 0), desc, font=font_help_txt)
         widths.append((bk[2] - bk[0], bt[2] - bt[0]))
     total_w = sum(wk + 8 + wt for wk, wt in widths) + spacing * (len(helps) - 1)
-    hx = (W - total_w) // 2
+    hx = (w - total_w) // 2
     hy = HELP_Y + 16
 
     for (key, desc), (wk, wt) in zip(helps, widths):
@@ -457,48 +447,47 @@ def create_bootmenu(selected_os: str, lang: str = "FR") -> Image.Image:
         draw.text((hx, hy), desc, font=font_help_txt, fill=C_GRAY)
         hx += wt + spacing
 
-    text_center(draw, ld["footer"], H - 16, font_info, C_DIM)
+    text_center(draw, ld["footer"], h - 16, font_info, C_DIM, w)
 
     return img
 
 
 # ── Createur ecran verrouille ──────────────────────────────────
 
-def create_locked_screen(os_name: str, lang: str = "FR") -> Image.Image:
+def create_locked_screen(os_name: str, lang: str = "FR", w: int = 640, h: int = 480) -> Image.Image:
     ld = LANGUAGES.get(lang, LANGUAGES["FR"])
     accent = C_ONION_ACC if os_name == "onion" else C_TELMI_ACC
     os_display = "OnionOS" if os_name == "onion" else "TelmiOS"
 
-    img = Image.new("RGB", (W, H))
+    img = Image.new("RGB", (w, h))
     draw = ImageDraw.Draw(img, "RGBA")
 
     # Fond plus sombre
-    draw_gradient_rect(draw, 0, 0, W, H, (6, 8, 14), (12, 15, 26))
+    draw_gradient_rect(draw, 0, 0, w, h, (6, 8, 14), (12, 15, 26))
 
     # Barre titre
-    TITLE_H = 72
-    draw_gradient_rect(draw, 0, 0, W, TITLE_H, (15, 18, 32), (12, 15, 28))
+    TITLE_H = int(72 * h / 480)
+    draw_gradient_rect(draw, 0, 0, w, TITLE_H, (15, 18, 32), (12, 15, 28))
     for i, alpha in enumerate([60, 120, 60, 30]):
-        draw.line([(0, TITLE_H - 2 + i), (W, TITLE_H - 2 + i)],
+        draw.line([(0, TITLE_H - 2 + i), (w, TITLE_H - 2 + i)],
                   fill=(200, 80, 80, alpha))
 
     font_title = get_font(28, bold=True)
     font_sub   = get_font(13)
-    text_center(draw, "MIYOO MINI+", 10, font_title, C_WHITE)
-    text_center(draw, "DUAL BOOT SELECTOR", 44, font_sub, C_GRAY)
+    text_center(draw, "MIYOO MINI+", 10, font_title, C_WHITE, w)
+    text_center(draw, "DUAL BOOT SELECTOR", 44, font_sub, C_GRAY, w)
 
     # Centre
-    cx, cy = W // 2, H // 2 - 10
+    cx, cy = w // 2, h // 2 - 10
 
     # --- Dessin cadenas ---
-    # Corps du cadenas
     body_x0, body_y0 = cx - 44, cy - 4
     body_x1, body_y1 = cx + 44, cy + 56
     draw.rounded_rectangle([body_x0, body_y0, body_x1, body_y1],
                             radius=8, fill=(30, 35, 55),
                             outline=(*accent, 200), width=3)
 
-    # Anneau du cadenas (arc semi-circulaire)
+    # Anneau du cadenas
     arc_r = 30
     arc_cx, arc_cy = cx, cy - 4
     draw.arc([arc_cx - arc_r, arc_cy - arc_r - 28,
@@ -506,19 +495,18 @@ def create_locked_screen(os_name: str, lang: str = "FR") -> Image.Image:
              start=0, end=180,
              fill=(*accent, 220), width=9)
 
-    # Trou de serrure - cercle
+    # Trou de serrure
     draw.ellipse([cx - 10, cy + 12, cx + 10, cy + 32],
                  fill=(12, 15, 26), outline=(*accent, 180), width=2)
-    # Trou de serrure - rectangle bas
     draw.rectangle([cx - 5, cy + 28, cx + 5, cy + 44],
                    fill=(12, 15, 26))
     draw.rectangle([cx - 4, cy + 28, cx + 4, cy + 44],
                    fill=(*accent, 120))
 
-    # Nom de l'OS en haut du cadenas
+    # Nom de l'OS
     font_os = get_font(22, bold=True)
     os_color = lerp_color(C_WHITE, accent, 0.4)
-    text_center(draw, os_display, cy - 90, font_os, os_color)
+    text_center(draw, os_display, cy - 90, font_os, os_color, w)
 
     # Filet decoratif
     line_y = cy - 70
@@ -527,71 +515,68 @@ def create_locked_screen(os_name: str, lang: str = "FR") -> Image.Image:
 
     # Titre "ACCES PROTEGE"
     font_lock_big = get_font(26, bold=True)
-    text_center(draw, ld["locked_title"], cy + 70, font_lock_big, C_WHITE)
+    text_center(draw, ld["locked_title"], cy + 70, font_lock_big, C_WHITE, w)
 
     # Sous-titre
     font_lock_sub = get_font(15)
-    text_center(draw, ld["locked_sub"], cy + 104, font_lock_sub, C_GRAY)
+    text_center(draw, ld["locked_sub"], cy + 104, font_lock_sub, C_GRAY, w)
 
     # Hint
     font_lock_hint = get_font(11)
     text_center(draw, ld["locked_hint"], cy + 128, font_lock_hint,
-                (*C_DIM, 200))
+                (*C_DIM, 200), w)
 
     # Barre bas
-    HELP_Y = H - 56
-    draw_gradient_rect(draw, 0, HELP_Y, W, H, (12, 15, 28), (8, 10, 20))
-    draw.line([(0, HELP_Y), (W, HELP_Y)], fill=(*C_DIVIDER, 200))
+    HELP_Y = h - 56
+    draw_gradient_rect(draw, 0, HELP_Y, w, h, (12, 15, 28), (8, 10, 20))
+    draw.line([(0, HELP_Y), (w, HELP_Y)], fill=(*C_DIVIDER, 200))
 
     font_cancel = get_font(13, bold=True)
     text_center(draw, ld["locked_cancel"], HELP_Y + 18,
-                font_cancel, (220, 100, 100))
+                font_cancel, (220, 100, 100), w)
 
     return img
 
 
 # ── Helpers config menu ───────────────────────────────────────
 
-def _cfg_base(lang):
+def _cfg_base(lang, w, h):
     """Cree une image de base pour les ecrans config (fond + barre titre)"""
     ct = CONFIG_TEXTS.get(lang, CONFIG_TEXTS["EN"])
-    img = Image.new("RGB", (W, H))
+    img = Image.new("RGB", (w, h))
     draw = ImageDraw.Draw(img, "RGBA")
-    draw_gradient_rect(draw, 0, 0, W, H, (6, 8, 16), (14, 18, 32))
-    TITLE_H = 68
-    draw_gradient_rect(draw, 0, 0, W, TITLE_H, (14, 17, 30), (11, 14, 26))
+    draw_gradient_rect(draw, 0, 0, w, h, (6, 8, 16), (14, 18, 32))
+    TITLE_H = int(68 * h / 480)
+    draw_gradient_rect(draw, 0, 0, w, TITLE_H, (14, 17, 30), (11, 14, 26))
     for i, alpha in enumerate([50, 110, 50, 25]):
-        draw.line([(0, TITLE_H - 2 + i), (W, TITLE_H - 2 + i)],
+        draw.line([(0, TITLE_H - 2 + i), (w, TITLE_H - 2 + i)],
                   fill=(*C_CFG_ACC, alpha))
     font_t = get_font(26, bold=True)
     font_s = get_font(12)
-    text_center(draw, "MIYOO MINI+", 8, font_t, C_WHITE)
-    text_center(draw, ct["title"], 42, font_s, (*C_CFG_ACC, 210))
+    text_center(draw, "MIYOO MINI+", 8, font_t, C_WHITE, w)
+    text_center(draw, ct["title"], 42, font_s, (*C_CFG_ACC, 210), w)
     return img, draw, TITLE_H, ct
 
 
-def _cfg_bottom(draw, nav_text, accent=None):
+def _cfg_bottom(draw, nav_text, w, h, accent=None):
     """Barre de navigation en bas de l'ecran config"""
     if accent is None:
         accent = C_CFG_ACC
-    HELP_Y = H - 46
-    draw_gradient_rect(draw, 0, HELP_Y, W, H, (11, 14, 26), (7, 9, 18))
-    draw.line([(0, HELP_Y), (W, HELP_Y)], fill=(*C_DIVIDER, 180))
+    HELP_Y = h - 46
+    draw_gradient_rect(draw, 0, HELP_Y, w, h, (11, 14, 26), (7, 9, 18))
+    draw.line([(0, HELP_Y), (w, HELP_Y)], fill=(*C_DIVIDER, 180))
     if nav_text:
         font_nav = get_font(11)
-        text_center(draw, nav_text, HELP_Y + 14, font_nav, (*C_GRAY, 200))
+        text_center(draw, nav_text, HELP_Y + 14, font_nav, (*C_GRAY, 200), w)
 
 
 def _draw_settings_icon(draw, cx, cy, size, accent):
     """Icone parametres (engrenage simplifie)"""
     ro, ri = size, size // 2
-    # Cercle exterieur
     draw.ellipse([cx - ro, cy - ro, cx + ro, cy + ro],
                  fill=(20, 28, 50), outline=(*accent, 210), width=3)
-    # Cercle interieur (trou)
     draw.ellipse([cx - ri, cy - ri, cx + ri, cy + ri],
                  fill=(8, 12, 22), outline=(*accent, 140), width=2)
-    # 4 dents (haut/bas/gauche/droite)
     t = 9
     draw.rectangle([cx - 4, cy - ro - t + 2, cx + 4, cy - ri - 2], fill=(*accent, 190))
     draw.rectangle([cx - 4, cy + ri + 2,     cx + 4, cy + ro + t - 2], fill=(*accent, 190))
@@ -601,10 +586,10 @@ def _draw_settings_icon(draw, cx, cy, size, accent):
 
 # ── Createurs ecrans config ────────────────────────────────────
 
-def create_config_access(lang="FR") -> Image.Image:
+def create_config_access(lang="FR", w=640, h=480) -> Image.Image:
     """Ecran d'entree du code administrateur"""
-    img, draw, TH, ct = _cfg_base(lang)
-    cx = W // 2
+    img, draw, TH, ct = _cfg_base(lang, w, h)
+    cx = w // 2
     icon_cy = TH + 80
 
     _draw_settings_icon(draw, cx, icon_cy, 36, C_CFG_ACC)
@@ -613,31 +598,30 @@ def create_config_access(lang="FR") -> Image.Image:
     font_sub  = get_font(14)
     font_hint = get_font(11)
 
-    text_center(draw, "Configuration", icon_cy + 52, font_main, C_WHITE)
+    text_center(draw, "Configuration", icon_cy + 52, font_main, C_WHITE, w)
 
-    # Boite sous-titre
     sub_y = icon_cy + 84
     bbox = draw.textbbox((0, 0), ct["access_sub"], font=font_sub)
     bw = bbox[2] - bbox[0] + 32
-    bx0, bx1 = (W - bw) // 2, (W + bw) // 2
+    bx0, bx1 = (w - bw) // 2, (w + bw) // 2
     draw.rounded_rectangle([bx0, sub_y - 6, bx1, sub_y + 22],
                            radius=8, fill=(28, 38, 62), outline=(*C_CFG_ACC, 160), width=1)
-    text_center(draw, ct["access_sub"], sub_y + 2, font_sub, (*C_CFG_ACC, 230))
+    text_center(draw, ct["access_sub"], sub_y + 2, font_sub, (*C_CFG_ACC, 230), w)
 
-    text_center(draw, ct["access_hint"], sub_y + 42, font_hint, C_GRAY)
+    text_center(draw, ct["access_hint"], sub_y + 42, font_hint, C_GRAY, w)
 
-    _cfg_bottom(draw, "")
+    _cfg_bottom(draw, "", w, h)
     return img
 
 
-def create_config_main(item_idx: int, lang="FR") -> Image.Image:
+def create_config_main(item_idx: int, lang="FR", w=640, h=480) -> Image.Image:
     """Menu principal config — item_idx = item selectionne (0-5)"""
-    img, draw, TH, ct = _cfg_base(lang)
+    img, draw, TH, ct = _cfg_base(lang, w, h)
 
     items    = ct["menu_items"]
     N        = len(items)
     TOP      = TH + 8
-    BOT      = H - 50
+    BOT      = h - 50
     ITEM_H   = (BOT - TOP) // N
     MARGIN   = 18
 
@@ -650,15 +634,14 @@ def create_config_main(item_idx: int, lang="FR") -> Image.Image:
         acc     = accents[i]
 
         if is_sel:
-            draw.rounded_rectangle([MARGIN, iy0, W - MARGIN, iy1],
+            draw.rounded_rectangle([MARGIN, iy0, w - MARGIN, iy1],
                                    radius=7, fill=(30, 40, 65),
                                    outline=(*acc, 230), width=2)
         else:
-            draw.rounded_rectangle([MARGIN, iy0, W - MARGIN, iy1],
+            draw.rounded_rectangle([MARGIN, iy0, w - MARGIN, iy1],
                                    radius=7, fill=(16, 20, 34),
                                    outline=(*C_DIM, 70), width=1)
 
-        # Fleche indicatrice
         if is_sel:
             ax, ay = MARGIN + 13, (iy0 + iy1) // 2
             draw.polygon([(ax, ay - 5), (ax + 7, ay), (ax, ay + 5)], fill=acc)
@@ -671,17 +654,13 @@ def create_config_main(item_idx: int, lang="FR") -> Image.Image:
         draw.text((MARGIN + 26, iy0 + 5),  name, font=font_n, fill=nc)
         draw.text((MARGIN + 26, iy0 + ITEM_H // 2 + 2), desc, font=font_d, fill=dc)
 
-    _cfg_bottom(draw, ct["menu_nav"])
+    _cfg_bottom(draw, ct["menu_nav"], w, h)
     return img
 
 
-def create_config_choice(screen_type: str, option_idx: int, lang="FR") -> Image.Image:
-    """
-    Ecran de choix en grille 2x2.
-    screen_type : 'protect' ou 'vib'
-    option_idx  : 0-3
-    """
-    img, draw, TH, ct = _cfg_base(lang)
+def create_config_choice(screen_type: str, option_idx: int, lang="FR", w=640, h=480) -> Image.Image:
+    """Ecran de choix en grille 2x2."""
+    img, draw, TH, ct = _cfg_base(lang, w, h)
 
     if screen_type == "protect":
         title   = ct["protect_title"]
@@ -692,14 +671,13 @@ def create_config_choice(screen_type: str, option_idx: int, lang="FR") -> Image.
         options = ct["vib_options"]
         accent  = C_VIB_ACC
 
-    # Sous-titre
     font_title = get_font(16, bold=True)
-    text_center(draw, title, TH + 10, font_title, (*accent, 220))
+    text_center(draw, title, TH + 10, font_title, (*accent, 220), w)
 
     GRID_TOP = TH + 38
-    GRID_BOT = H - 50
+    GRID_BOT = h - 50
     PAD      = 16
-    CARD_W   = (W - 3 * PAD) // 2
+    CARD_W   = (w - 3 * PAD) // 2
     CARD_H   = (GRID_BOT - GRID_TOP - PAD) // 2
 
     positions = [
@@ -724,7 +702,6 @@ def create_config_choice(screen_type: str, option_idx: int, lang="FR") -> Image.
             draw.rounded_rectangle([x0, y0, x1, y1], radius=10,
                                    fill=(16, 20, 34), outline=(*C_DIM, 90), width=1)
 
-        # Point de selection
         dr = 5
         dot_y = y0 + 12
         if is_sel:
@@ -747,17 +724,14 @@ def create_config_choice(screen_type: str, option_idx: int, lang="FR") -> Image.
         dw = bbox_d[2] - bbox_d[0]
         draw.text((cx_c - dw // 2, y0 + CARD_H // 2 + 8), opt_desc, font=font_od, fill=dc)
 
-    _cfg_bottom(draw, ct["choice_nav"], accent)
+    _cfg_bottom(draw, ct["choice_nav"], w, h, accent)
     return img
 
 
-def create_config_entry(entry_type: str, lang="FR") -> Image.Image:
-    """
-    Ecran de saisie d'une nouvelle sequence de boutons.
-    entry_type : 'pw' (code verrou) ou 'cfg' (code admin)
-    """
-    img, draw, TH, ct = _cfg_base(lang)
-    cx = W // 2
+def create_config_entry(entry_type: str, lang="FR", w=640, h=480) -> Image.Image:
+    """Ecran de saisie d'une nouvelle sequence de boutons."""
+    img, draw, TH, ct = _cfg_base(lang, w, h)
+    cx = w // 2
 
     title  = ct["pw_title"]  if entry_type == "pw" else ct["cfg_title"]
     sub    = ct["pw_sub"]    if entry_type == "pw" else ct["cfg_sub"]
@@ -767,8 +741,8 @@ def create_config_entry(entry_type: str, lang="FR") -> Image.Image:
     font_s = get_font(14)
     font_h = get_font(11)
 
-    text_center(draw, title, TH + 12, font_t, (*accent, 220))
-    text_center(draw, sub,   TH + 36, font_s, C_WHITE)
+    text_center(draw, title, TH + 12, font_t, (*accent, 220), w)
+    text_center(draw, sub,   TH + 36, font_s, C_WHITE, w)
 
     # Slots de saisie (8 emplacements)
     SY      = TH + 72
@@ -776,54 +750,49 @@ def create_config_entry(entry_type: str, lang="FR") -> Image.Image:
     SLOT_H  = 46
     SLOT_G  = 10
     TOTAL   = 8 * SLOT_W + 7 * SLOT_G
-    sx0     = (W - TOTAL) // 2
+    sx0     = (w - TOTAL) // 2
 
     for s in range(8):
         sx = sx0 + s * (SLOT_W + SLOT_G)
         draw.rounded_rectangle([sx, SY, sx + SLOT_W, SY + SLOT_H],
                                radius=6, fill=(20, 26, 44),
                                outline=(*C_DIM, 110), width=1)
-        # Tiret indicateur "vide"
         mid_y = SY + SLOT_H // 2
         draw.line([(sx + 14, mid_y), (sx + SLOT_W - 14, mid_y)],
                  fill=(*C_DIM, 90), width=2)
 
-    # Boite instructions
     IY = SY + SLOT_H + 20
-    draw.rounded_rectangle([36, IY - 8, W - 36, IY + 56],
+    draw.rounded_rectangle([36, IY - 8, w - 36, IY + 56],
                            radius=8, fill=(18, 24, 42), outline=(*accent, 90), width=1)
-    text_center(draw, ct["entry_hint1"], IY + 6,  font_h, C_GRAY)
-    text_center(draw, ct["entry_hint2"], IY + 28, get_font(12, bold=True), (*accent, 200))
+    text_center(draw, ct["entry_hint1"], IY + 6,  font_h, C_GRAY, w)
+    text_center(draw, ct["entry_hint2"], IY + 28, get_font(12, bold=True), (*accent, 200), w)
 
-    # Boutons disponibles
-    text_center(draw, ct["entry_btns"], IY + 72, font_h, C_DIM)
+    text_center(draw, ct["entry_btns"], IY + 72, font_h, C_DIM, w)
 
-    _cfg_bottom(draw, "", accent)
+    _cfg_bottom(draw, "", w, h, accent)
     return img
 
 
-def create_config_saved(lang="FR") -> Image.Image:
+def create_config_saved(lang="FR", w=640, h=480) -> Image.Image:
     """Ecran de confirmation : configuration sauvegardee"""
-    img, draw, TH, ct = _cfg_base(lang)
-    cx = W // 2
+    img, draw, TH, ct = _cfg_base(lang, w, h)
+    cx = w // 2
     acc = C_SAVE_ACC
 
     icon_cy = TH + 95
     r = 44
-    # Cercle vert
     draw.ellipse([cx - r, icon_cy - r, cx + r, icon_cy + r],
                  fill=(16, 46, 26), outline=(*acc, 220), width=4)
-    # Coche (checkmark)
     pts = [(cx - 18, icon_cy + 2), (cx - 4, icon_cy + 18), (cx + 20, icon_cy - 16)]
     for j in range(len(pts) - 1):
         draw.line([pts[j], pts[j + 1]], fill=(*acc, 255), width=5)
 
     font_s = get_font(20, bold=True)
     font_d = get_font(13)
-    text_center(draw, ct["saved_title"], icon_cy + r + 20, font_s, C_WHITE)
-    text_center(draw, ct["saved_sub"],   icon_cy + r + 52, font_d, C_GRAY)
+    text_center(draw, ct["saved_title"], icon_cy + r + 20, font_s, C_WHITE, w)
+    text_center(draw, ct["saved_sub"],   icon_cy + r + 52, font_d, C_GRAY, w)
 
-    _cfg_bottom(draw, "", acc)
+    _cfg_bottom(draw, "", w, h, acc)
     return img
 
 
@@ -842,21 +811,21 @@ def save_raw(img: Image.Image, path: str):
 
 # ── Generateur d'images pour une resolution donnee ────────────
 
-def _generate_all_images(suffix, sd_res):
+def _generate_all_images(suffix, sd_res, w, h):
     """
-    Genere tous les fichiers RAW pour la resolution courante (W x H).
+    Genere tous les fichiers RAW pour la resolution courante (w x h).
     suffix : "" pour 640x480, "_flip" pour 752x560 (Miyoo Mini Flip)
     Les PNG de preview ne sont generes que pour la resolution de base (suffix vide).
     """
     for lang in ("FR", "EN", "ES"):
         print(f"\n{'-'*30}")
-        print(f"  Langue : {lang}  [{W}x{H}]")
+        print(f"  Langue : {lang}  [{w}x{h}]")
         print(f"{'-'*30}")
 
         for os_name in ("onion", "telmios"):
             # Image menu principale
             print(f"  -> bootmenu_{os_name}_{lang}{suffix} ...")
-            img = create_bootmenu(os_name, lang)
+            img = create_bootmenu(os_name, lang, w, h)
 
             if not suffix:
                 png_path = os.path.join(OUTPUT_DIR, f"bootmenu_{os_name}_{lang}.png")
@@ -869,7 +838,7 @@ def _generate_all_images(suffix, sd_res):
 
             # Ecran verrouille
             print(f"  -> bootmenu_locked_{os_name}_{lang}{suffix} ...")
-            img_lock = create_locked_screen(os_name, lang)
+            img_lock = create_locked_screen(os_name, lang, w, h)
 
             raw_lock = os.path.join(sd_res, f"bootmenu_locked_{os_name}_{lang}{suffix}.raw")
             nb_lock  = save_raw(img_lock, raw_lock)
@@ -881,7 +850,7 @@ def _generate_all_images(suffix, sd_res):
 
     # ── Images du menu de configuration ──────────────────────────
     print(f"\n{'-'*30}")
-    print(f"  Images Menu Configuration  [{W}x{H}]")
+    print(f"  Images Menu Configuration  [{w}x{h}]")
     print(f"{'-'*30}")
 
     cfg_specs = []
@@ -900,19 +869,19 @@ def _generate_all_images(suffix, sd_res):
         print(f"\n  Langue : {lang}")
         for name, kind, idx in cfg_specs:
             if kind is None and name == "config_access":
-                img = create_config_access(lang)
+                img = create_config_access(lang, w, h)
             elif kind == "main":
-                img = create_config_main(idx, lang)
+                img = create_config_main(idx, lang, w, h)
             elif kind == "protect":
-                img = create_config_choice("protect", idx, lang)
+                img = create_config_choice("protect", idx, lang, w, h)
             elif kind == "vib":
-                img = create_config_choice("vib", idx, lang)
+                img = create_config_choice("vib", idx, lang, w, h)
             elif kind == "entry_pw":
-                img = create_config_entry("pw", lang)
+                img = create_config_entry("pw", lang, w, h)
             elif kind == "entry_cfg":
-                img = create_config_entry("cfg", lang)
+                img = create_config_entry("cfg", lang, w, h)
             elif kind == "saved":
-                img = create_config_saved(lang)
+                img = create_config_saved(lang, w, h)
             else:
                 continue
 
@@ -932,14 +901,12 @@ def _generate_all_images(suffix, sd_res):
 # ── Point d'entree ────────────────────────────────────────────
 
 def main():
-    global W, H
-
     print("=" * 56)
     print("  Generateur Boot Menu Miyoo Mini / Mini+ / Mini Flip")
     print("  Langues : FR / EN / ES")
     print("=" * 56)
 
-    # Chemin SD passé en argument (ex: depuis l'installateur PowerShell)
+    # Chemin SD passe en argument (ex: depuis l'installateur PowerShell)
     if len(sys.argv) > 1:
         sd_root = sys.argv[1].rstrip("\\").rstrip("/")
         SD_RES = os.path.join(sd_root, ".tmp_update", "res")
@@ -965,15 +932,13 @@ def main():
     print(f"\n{'='*56}")
     print("  Resolution 640x480  (Miyoo Mini / Mini Plus)")
     print(f"{'='*56}")
-    W, H = 640, 480
-    _generate_all_images("", SD_RES)
+    _generate_all_images("", SD_RES, 640, 480)
 
     # ── Resolution 752x560 : Miyoo Mini Flip ─────────────────────
     print(f"\n{'='*56}")
     print("  Resolution 752x560  (Miyoo Mini Flip) -> suffix _flip")
     print(f"{'='*56}")
-    W, H = 752, 560
-    _generate_all_images("_flip", SD_RES)
+    _generate_all_images("_flip", SD_RES, 752, 560)
 
     print(f"\n{'='*56}")
     print("TERMINE !")

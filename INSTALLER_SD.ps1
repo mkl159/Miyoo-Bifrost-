@@ -258,9 +258,24 @@ if (-not (Test-Path "$SD\")) {
 Write-Host "$($L.sdTarget) : $SD" -ForegroundColor Green
 Write-Host ""
 
-# --- Verification et formatage FAT32 ---
+# --- Verification volume amovible ---
 $sdLetter = ($SD -replace ':\\.*', '').ToUpper()
 Log "Lettre lecteur SD : $sdLetter"
+$driveObj = Get-WmiObject Win32_LogicalDisk -Filter "DeviceID='${sdLetter}:'" -ErrorAction SilentlyContinue
+if ($driveObj -and $driveObj.DriveType -ne 2) {
+    Log "Le lecteur $sdLetter n'est pas amovible (DriveType=$($driveObj.DriveType))" "WARN"
+    Write-Host "  [AVERT] Le lecteur $sdLetter ne semble pas etre un peripherique amovible." -ForegroundColor Yellow
+    $repDrive = Read-Host "  Continuer quand meme ? (O=Oui / N=Non)"
+    if ($repDrive -notmatch "^[oOyYsS]") {
+        Log "Arret : lecteur non amovible refuse" "WARN"
+        Write-Host "  Annule." -ForegroundColor Red
+        Read-Host $L.pressEnter
+        exit 1
+    }
+    Log "Lecteur non amovible accepte par l'utilisateur"
+}
+
+# --- Verification et formatage FAT32 ---
 $vol = Get-Volume -DriveLetter $sdLetter -ErrorAction SilentlyContinue
 if ($vol) {
     $sizeGB = [math]::Round($vol.Size / 1GB, 1)
@@ -679,7 +694,7 @@ if ($errors -eq 0) {
     Write-Host $L.lastOS
 } else {
     Log "=== INSTALLATION INCOMPLETE ($errors erreur(s)) ===" "ERROR"
-    Write-Host "  $($L.warning) $errors $($L.missingFiles)" -ForegroundColor Red
+    Write-Host "  $errors $($L.missingFiles)" -ForegroundColor Red
     Write-Host "========================================" -ForegroundColor Cyan
     Write-Host $L.checkFolders
     Write-Host $L.checkSameDir

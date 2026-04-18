@@ -32,7 +32,14 @@ static class Program
                 psi.UseShellExecute = true;
                 Process.Start(psi);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    "L'installeur necessite les droits administrateur.\n\n" +
+                    "Clic droit > Executer en tant qu'administrateur.\n\n" +
+                    ex.Message,
+                    "Miyoo Bifrost", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
             return;
         }
 
@@ -103,6 +110,7 @@ class InstallerForm : Form
     Label       _status;
     Button      _btnStart;
     Button      _btnClose;
+    volatile bool _installing = false;
 
     public InstallerForm(string lang)
     {
@@ -194,6 +202,17 @@ class InstallerForm : Form
         _btnClose.FlatStyle = FlatStyle.Flat;
         _btnClose.Click    += delegate { Close(); };
         Controls.Add(_btnClose);
+
+        FormClosing += delegate(object s, System.Windows.Forms.FormClosingEventArgs ev)
+        {
+            if (_installing)
+            {
+                DialogResult r = MessageBox.Show(this,
+                    _L["closeWarn"],
+                    "Bifrost", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                if (r != DialogResult.Yes) ev.Cancel = true;
+            }
+        };
     }
 
     // ------------------------------------------------------------------
@@ -246,18 +265,39 @@ class InstallerForm : Form
     // ------------------------------------------------------------------
     void RunInstall(string sd, string onion, string telmi)
     {
+        _installing = true;
         try
         {
-            // ==== FAT32 check ====
+            // ==== Drive type check ====
             string driveLetter = sd.Length >= 1 ? sd.Substring(0, 1).ToUpper() : "C";
             try
             {
                 DriveInfo di   = new DriveInfo(driveLetter);
                 long sizeGB    = di.TotalSize / (1024L * 1024L * 1024L);
                 string fs      = di.DriveFormat;
-                Log("Drive " + driveLetter + ": " + sizeGB + " GB, FS=" + fs);
+                Log("Drive " + driveLetter + ": " + sizeGB + " GB, FS=" + fs + ", Type=" + di.DriveType);
                 AppendLog(string.Format("  {0}: {1} GB, {2}: {3}",
                     _L["fat32Detected"], sizeGB, _L["fat32Current"], fs), Color.Cyan);
+
+                // Warn if not a removable drive
+                if (di.DriveType != DriveType.Removable)
+                {
+                    Log("Drive is not removable: " + di.DriveType);
+                    AppendLog("  [WARN] " + di.DriveType, Color.Yellow);
+                    bool proceed = false;
+                    Invoke((Action)delegate
+                    {
+                        DialogResult r = MessageBox.Show(this,
+                            _L["driveWarn"],
+                            "Bifrost", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                        proceed = (r == DialogResult.Yes);
+                    });
+                    if (!proceed)
+                    {
+                        AppendLog(_L["cancelled"], Color.OrangeRed);
+                        Done(false); return;
+                    }
+                }
 
                 if (fs != "FAT32")
                 {
@@ -749,8 +789,14 @@ class InstallerForm : Form
             psi.RedirectStandardError  = true;
             psi.CreateNoWindow         = true;
             Process p = Process.Start(psi);
+            // Read stderr async to avoid deadlock when both buffers fill
+            string e = "";
+            p.ErrorDataReceived += delegate(object s, DataReceivedEventArgs ev)
+            {
+                if (ev.Data != null) e += ev.Data + "\n";
+            };
+            p.BeginErrorReadLine();
             string o = p.StandardOutput.ReadToEnd();
-            string e = p.StandardError.ReadToEnd();
             p.WaitForExit();
             if (o.Trim().Length > 0) Log("stdout: " + o.Trim());
             if (e.Trim().Length > 0) Log("stderr: " + e.Trim());
@@ -771,8 +817,13 @@ class InstallerForm : Form
             psi.RedirectStandardError  = true;
             psi.CreateNoWindow         = true;
             Process p = Process.Start(psi);
+            string e = "";
+            p.ErrorDataReceived += delegate(object s, DataReceivedEventArgs ev)
+            {
+                if (ev.Data != null) e += ev.Data + "\n";
+            };
+            p.BeginErrorReadLine();
             string o = p.StandardOutput.ReadToEnd();
-            string e = p.StandardError.ReadToEnd();
             p.WaitForExit();
             if (o.Trim().Length > 0) { Log("stdout: " + o.Trim()); AppendLog(o.Trim(), Color.Silver); }
             if (e.Trim().Length > 0) { Log("stderr: " + e.Trim()); AppendLog(e.Trim(), Color.Yellow); }
@@ -853,6 +904,7 @@ class InstallerForm : Form
 
     void Done(bool success)
     {
+        _installing = false;
         Action act = delegate
         {
             if (success) _progress.Value = 8;
@@ -937,6 +989,8 @@ class InstallerForm : Form
             d["errNoDual"]       = "ERREUR : Dossier DualBoot introuvable";
             d["errNoDualDetail"] = "Le dossier DualBoot doit se trouver dans le meme dossier que cet installeur.";
             d["logSaved"]        = "Log complet sauvegarde sur le Bureau";
+            d["closeWarn"]       = "L'installation est en cours !\nFermer maintenant peut corrompre la carte SD.\n\nVraiment quitter ?";
+            d["driveWarn"]       = "ATTENTION : Le lecteur selectionne n'est pas amovible.\nEs-tu sur de vouloir installer sur ce lecteur ?";
         }
         else if (lang == "EN")
         {
@@ -993,6 +1047,8 @@ class InstallerForm : Form
             d["errNoDual"]       = "ERROR: DualBoot folder not found";
             d["errNoDualDetail"] = "The DualBoot folder must be in the same directory as this installer.";
             d["logSaved"]        = "Full log saved to Desktop";
+            d["closeWarn"]       = "Installation is in progress!\nClosing now may corrupt the SD card.\n\nReally quit?";
+            d["driveWarn"]       = "WARNING: The selected drive is not removable.\nAre you sure you want to install to this drive?";
         }
         else // ES
         {
@@ -1049,6 +1105,8 @@ class InstallerForm : Form
             d["errNoDual"]       = "ERROR: Carpeta DualBoot no encontrada";
             d["errNoDualDetail"] = "La carpeta DualBoot debe estar en el mismo directorio que este instalador.";
             d["logSaved"]        = "Log completo guardado en el Escritorio";
+            d["closeWarn"]       = "La instalacion esta en curso!\nCerrar ahora puede corromper la tarjeta SD.\n\nRealmente salir?";
+            d["driveWarn"]       = "ATENCION: La unidad seleccionada no es extraible.\nEstas seguro de querer instalar en esta unidad?";
         }
 
         return d;
