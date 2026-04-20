@@ -586,6 +586,21 @@ SELECTION="onion"
 }
 log "selection=$SELECTION"
 
+# =============================================================
+#  MODE AUTOBOOT (declenche par le plugin SwitchToTelmiOS)
+#  Si /mnt/SDCARD/.autoboot existe, le menu est ignore et
+#  l'OS dans .bootchoice est lance instantanement.
+# =============================================================
+AUTOBOOT_FILE=/mnt/SDCARD/.autoboot
+AUTOBOOT=0
+if [ -f "$AUTOBOOT_FILE" ]; then
+    rm -f "$AUTOBOOT_FILE" 2>/dev/null
+    sync
+    log "AUTOBOOT: skip menu -> $SELECTION"
+    AUTOBOOT=1
+    CONFIRM_METHOD="autoboot"
+fi
+
 # ---- show_menu : ecriture directe sur /dev/fb0 (SANS SDL) ----
 # Les fichiers .raw sont des images BGRA 640x480x4 ou 752x560x4 selon le modele.
 # Nom : bootmenu_<name>_<LANG>[_flip].raw  (fallback progressif sans suffix)
@@ -625,6 +640,8 @@ else
     RES_SUFFIX=""
     log "Resolution FB: ${FB_W}x${FB_H} -> images standard"
 fi
+
+if [ "$AUTOBOOT" = "0" ]; then
 
 # ---- Attendre que le backlight soit pret (PWM peut prendre jusqu'a 2s) ----
 sleep 1.5
@@ -759,6 +776,8 @@ log "Loop done. COUNTER=$COUNTER method=$CONFIRM_METHOD selection=$SELECTION"
 # ---- Cleanup readers ----
 _stop_readers "$READER_PIDS"
 rm -f "$KEY_FILE"
+
+fi  # fin bloc AUTOBOOT=0 (menu interactif)
 
 # ---- Sauvegarder le choix (sync pour eviter corruption) ----
 echo "$SELECTION" > "$CHOICE_FILE"

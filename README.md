@@ -336,6 +336,22 @@ Le firmware Miyoo exécute `/mnt/SDCARD/.tmp_update/runtime.sh` au démarrage. B
 
 ---
 
+## 🔌 Plugin OnionOS — Switch TelmiOS
+
+Un plugin compagnon est disponible pour **basculer directement de OnionOS vers TelmiOS** sans passer par le menu Bifrost au démarrage :
+
+👉 **[Bifrost-SwitchToTelmiOS](https://github.com/mkl159/Bifrost-SwitchToTelmiOS)**
+
+- 📱 Application visible dans le menu Apps d'OnionOS
+- ✅ Vérifie que TelmiOS est bien installé sur la carte SD avant de basculer
+- 💬 Écran de confirmation natif (A = Confirmer, B = Annuler)
+- ⚡ Reboot automatique + démarrage direct dans TelmiOS (skip le menu Bifrost)
+- 🔄 Fonctionne avec le mode **Autoboot** intégré dans le dualboot Bifrost
+
+> Le plugin nécessite la version du dualboot Bifrost avec support Autoboot (incluse depuis cette version).
+
+---
+
 ## Licence
 
 Projet communautaire non officiel. OnionOS et TelmiOS sont des projets indépendants.
@@ -644,6 +660,22 @@ The Miyoo firmware executes `/mnt/SDCARD/.tmp_update/runtime.sh` at startup. Bif
 | `BUILD_EXE.bat` | Recompiles `INSTALLER_BIFROST.cs` → `.exe` (double-click) |
 | `INSTALLER_SD.ps1` | Alternative PowerShell installer (command line) |
 | `install_macos.sh` | macOS installer *(untested — feedback welcome)* |
+
+---
+
+## 🔌 OnionOS Plugin — Switch TelmiOS
+
+A companion plugin is available to **switch directly from OnionOS to TelmiOS** without going through the Bifrost boot menu:
+
+👉 **[Bifrost-SwitchToTelmiOS](https://github.com/mkl159/Bifrost-SwitchToTelmiOS)**
+
+- 📱 App visible in OnionOS Apps menu
+- ✅ Verifies TelmiOS is properly installed on SD before switching
+- 💬 Native confirmation dialog (A = Confirm, B = Cancel)
+- ⚡ Auto-reboot + direct TelmiOS boot (skips Bifrost menu)
+- 🔄 Works with the **Autoboot** mode built into the Bifrost dualboot
+
+> The plugin requires the Bifrost dualboot version with Autoboot support (included since this release).
 
 ---
 
