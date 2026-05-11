@@ -25,7 +25,10 @@ log "=== DualBoot start ==="
 # =============================================================
 TELMI_LABEL="TelmiOS-v1.10.1"
 TELMI_AUTORUN=/mnt/SDCARD/autorun.inf
-if ! grep -Fxq "label = $TELMI_LABEL" "$TELMI_AUTORUN" 2>/dev/null; then
+# 'tr -d \\r' tolere les fins de ligne CRLF (le repo ship en CRLF
+# via INSTALLER_SD.ps1 sur Windows). grep -Fxq verifie ensuite la
+# ligne entiere en fixed-string (evite l'interpretation des dots).
+if [ ! -f "$TELMI_AUTORUN" ] || ! tr -d '\r' < "$TELMI_AUTORUN" 2>/dev/null | grep -Fxq "label = $TELMI_LABEL"; then
     log "Autorun drift detected -> restoring Telmi marker"
     cat > "$TELMI_AUTORUN" << EOF
 [autorun]
