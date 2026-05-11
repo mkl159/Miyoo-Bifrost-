@@ -19,6 +19,23 @@ log() { echo "[$(date +%H:%M:%S)] $*" >> "$LOG"; sync; }
 log "=== DualBoot start ==="
 
 # =============================================================
+#  Telmi-Sync: restaurer l'autorun canonique (filet defensif)
+#  Couvre tout drift residuel (install Onion legacy, manipulation
+#  manuelle...). Bumper TELMI_LABEL quand TelmiOS monte de version.
+# =============================================================
+TELMI_LABEL="TelmiOS-v1.10.1"
+TELMI_AUTORUN=/mnt/SDCARD/autorun.inf
+if ! grep -Fxq "label = $TELMI_LABEL" "$TELMI_AUTORUN" 2>/dev/null; then
+    log "Autorun drift detected -> restoring Telmi marker"
+    cat > "$TELMI_AUTORUN" << EOF
+[autorun]
+icon  = .tmp_update/res/sdcard.ico
+label = $TELMI_LABEL
+EOF
+    sync
+fi
+
+# =============================================================
 #  Constantes keycodes (Linux input event codes)
 # =============================================================
 KEY_UP=103
@@ -823,6 +840,24 @@ if [ "$SELECTION" = "onion" ]; then
             log "Pre-mount MainUI FAILED (mount_main_ui tentera)"
     else
         log "Pre-mount: src=$_mainui_src ou tgt=$_mainui_tgt manquant"
+    fi
+fi
+
+# ---- Telmi-Sync: bouclier autorun.inf pendant la session OnionOS ----
+# install.sh (et l'OTA) extrait onion.pak qui contient un autorun.inf
+# avec label=Onion-vX.Y.Z, ce qui ecrase notre marker Telmi-Sync.
+# Parade : bind un leurre tmpfs par-dessus le vrai fichier. Tous les
+# ecrits Onion atterrissent en RAM, le fichier reel sur SD reste
+# intact. Le bind disparait au reboot.
+if [ "$SELECTION" = "onion" ] && [ -f "$TELMI_AUTORUN" ]; then
+    DECOY=/tmp/onion_autorun.decoy
+    # Garantir que le leurre existe (cp peut echouer sur FS corrompu).
+    # Un fichier vide suffit : Onion ecrase via la bind, contenu non utilise.
+    cp "$TELMI_AUTORUN" "$DECOY" 2>/dev/null || : > "$DECOY"
+    if mount --bind "$DECOY" "$TELMI_AUTORUN" 2>/dev/null; then
+        log "Autorun shield: bind decoy active for Onion session"
+    else
+        log "Autorun shield: bind FAILED (B layer will heal at next boot)"
     fi
 fi
 
