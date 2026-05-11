@@ -19,21 +19,50 @@ log() { echo "[$(date +%H:%M:%S)] $*" >> "$LOG"; sync; }
 log "=== DualBoot start ==="
 
 # =============================================================
-#  Telmi-Sync: restaurer l'autorun canonique (filet defensif)
-#  Couvre tout drift residuel (install Onion legacy, manipulation
-#  manuelle...). Bumper TELMI_LABEL quand TelmiOS monte de version.
+#  Telmi-Sync: detection souple + restauration (couche B / heal)
+#  Telmi-Sync (DantSu/Telmi-Sync) detecte la SD si l'autorun.inf
+#  contient 'label = TelmiOS-v<X>.<Y>.<Z>' (X,Y,Z entiers, X >= 1).
+#  Logique :
+#   - Si label TelmiOS-v* deja present -> ACCEPTER (pas de rewrite,
+#     respecte les upgrades manuels et les versions futures), et
+#     memoriser comme "last-known-good" pour les restaurations.
+#   - Sinon (label Onion ou autre) -> restaurer le last-known-good,
+#     ou a defaut TELMI_LABEL_FALLBACK.
+#  TELMI_LABEL_FALLBACK ne sert qu'au premier boot sans historique
+#  (ou si le fichier de backup est corrompu).
 # =============================================================
-TELMI_LABEL="TelmiOS-v1.10.1"
+TELMI_LABEL_FALLBACK="TelmiOS-v1.10.1"
+TELMI_LABEL_FILE="$sysdir/config/telmi_label"
 TELMI_AUTORUN=/mnt/SDCARD/autorun.inf
-# 'tr -d \\r' tolere les fins de ligne CRLF (le repo ship en CRLF
-# via INSTALLER_SD.ps1 sur Windows). grep -Fxq verifie ensuite la
-# ligne entiere en fixed-string (evite l'interpretation des dots).
-if [ ! -f "$TELMI_AUTORUN" ] || ! tr -d '\r' < "$TELMI_AUTORUN" 2>/dev/null | grep -Fxq "label = $TELMI_LABEL"; then
-    log "Autorun drift detected -> restoring Telmi marker"
+
+# 'tr -d \\r' : tolerer CRLF (DualBoot/autorun.inf ship en CRLF
+# via INSTALLER_SD.ps1 sur Windows). grep -E : regex etendu.
+current_label=""
+if [ -f "$TELMI_AUTORUN" ]; then
+    current_label=$(tr -d '\r' < "$TELMI_AUTORUN" 2>/dev/null \
+        | grep -m1 -E '^label = TelmiOS-v[0-9]+\.[0-9]+\.[0-9]+' \
+        | sed 's/^label = //')
+fi
+
+if [ -n "$current_label" ]; then
+    # Label Telmi valide. Memoriser si change (idempotent).
+    if [ "$(head -1 "$TELMI_LABEL_FILE" 2>/dev/null)" != "$current_label" ]; then
+        mkdir -p "$(dirname "$TELMI_LABEL_FILE")" 2>/dev/null
+        echo "$current_label" > "$TELMI_LABEL_FILE"
+        sync
+        log "Autorun: Telmi label memorise -> $current_label"
+    fi
+else
+    # Label absent ou ecrase (Onion). Restaurer le last-known-good,
+    # revalide avec le meme regex strict que pour current_label.
+    restore_label=$(head -1 "$TELMI_LABEL_FILE" 2>/dev/null \
+        | grep -E '^TelmiOS-v[0-9]+\.[0-9]+\.[0-9]+$')
+    [ -z "$restore_label" ] && restore_label="$TELMI_LABEL_FALLBACK"
+    log "Autorun drift -> restoring label = $restore_label"
     cat > "$TELMI_AUTORUN" << EOF
 [autorun]
 icon  = .tmp_update/res/sdcard.ico
-label = $TELMI_LABEL
+label = $restore_label
 EOF
     sync
 fi
