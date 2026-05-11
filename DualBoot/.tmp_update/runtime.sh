@@ -19,6 +19,74 @@ log() { echo "[$(date +%H:%M:%S)] $*" >> "$LOG"; sync; }
 log "=== DualBoot start ==="
 
 # =============================================================
+#  Telmi-Sync: sync autorun.inf avec la vraie version TelmiOS
+#  (couche B / heal). Priorite des sources pour le label canonique :
+#    1. $TELMIOS_DIR/.tmp_update/telmiVersion/version.txt
+#       (ecrit par le Makefile TelmiOS, ligne 64 : `echo -n "v$(VERSION)"`)
+#       -> source de verite : si TelmiOS upgrade, le label suit auto
+#    2. Label actuel de autorun.inf s'il est deja un TelmiOS-v* valide
+#       (si TelmiOS pas installe, on preserve ce qu'on a)
+#    3. Last-known-good memorise dans $sysdir/config/telmi_label
+#    4. Hardcode TELMI_LABEL_FALLBACK (premier boot, tout absent)
+#
+#  Apres avoir derive canonical_label, on synchronise l'autorun
+#  si different (cas typique : Onion ecrase, ou TelmiOS upgrade).
+# =============================================================
+TELMI_LABEL_FALLBACK="TelmiOS-v1.10.1"
+TELMI_LABEL_FILE="$sysdir/config/telmi_label"
+TELMI_VERSION_FILE="$TELMIOS_DIR/.tmp_update/telmiVersion/version.txt"
+TELMI_AUTORUN=/mnt/SDCARD/autorun.inf
+
+# --- Source 1 : fichier de version TelmiOS (autoritaire) ---
+canonical_label=""
+if [ -f "$TELMI_VERSION_FILE" ]; then
+    _ver=$(tr -d '\r\n ' < "$TELMI_VERSION_FILE" 2>/dev/null)
+    if echo "$_ver" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+        canonical_label="TelmiOS-$_ver"
+    fi
+fi
+
+# --- Lecture du label actuel sur la SD ('tr -d \\r' pour CRLF) ---
+current_label=""
+if [ -f "$TELMI_AUTORUN" ]; then
+    current_label=$(tr -d '\r' < "$TELMI_AUTORUN" 2>/dev/null \
+        | grep -m1 -E '^label = TelmiOS-v[0-9]+\.[0-9]+\.[0-9]+' \
+        | sed 's/^label = //')
+fi
+
+# --- Sources 2-4 : fallback si TelmiOS file manque/invalide ---
+if [ -z "$canonical_label" ]; then
+    if [ -n "$current_label" ]; then
+        # Source 2 : autorun actuel deja valide -> on garde
+        canonical_label="$current_label"
+    else
+        # Source 3 : last-known-good (revalide strict)
+        canonical_label=$(head -1 "$TELMI_LABEL_FILE" 2>/dev/null \
+            | grep -E '^TelmiOS-v[0-9]+\.[0-9]+\.[0-9]+$')
+        # Source 4 : fallback hardcode
+        [ -z "$canonical_label" ] && canonical_label="$TELMI_LABEL_FALLBACK"
+    fi
+fi
+
+# --- Sync autorun.inf si different du canonique ---
+if [ "$current_label" != "$canonical_label" ]; then
+    log "Autorun sync : '$current_label' -> '$canonical_label'"
+    cat > "$TELMI_AUTORUN" << EOF
+[autorun]
+icon  = .tmp_update/res/sdcard.ico
+label = $canonical_label
+EOF
+    sync
+fi
+
+# --- Persiste canonical_label comme last-known-good (idempotent) ---
+if [ "$(head -1 "$TELMI_LABEL_FILE" 2>/dev/null)" != "$canonical_label" ]; then
+    mkdir -p "$(dirname "$TELMI_LABEL_FILE")" 2>/dev/null
+    echo "$canonical_label" > "$TELMI_LABEL_FILE"
+    sync
+fi
+
+# =============================================================
 #  Constantes keycodes (Linux input event codes)
 # =============================================================
 KEY_UP=103
@@ -823,6 +891,24 @@ if [ "$SELECTION" = "onion" ]; then
             log "Pre-mount MainUI FAILED (mount_main_ui tentera)"
     else
         log "Pre-mount: src=$_mainui_src ou tgt=$_mainui_tgt manquant"
+    fi
+fi
+
+# ---- Telmi-Sync: bouclier autorun.inf pendant la session OnionOS ----
+# install.sh (et l'OTA) extrait onion.pak qui contient un autorun.inf
+# avec label=Onion-vX.Y.Z, ce qui ecrase notre marker Telmi-Sync.
+# Parade : bind un leurre tmpfs par-dessus le vrai fichier. Tous les
+# ecrits Onion atterrissent en RAM, le fichier reel sur SD reste
+# intact. Le bind disparait au reboot.
+if [ "$SELECTION" = "onion" ] && [ -f "$TELMI_AUTORUN" ]; then
+    DECOY=/tmp/onion_autorun.decoy
+    # Garantir que le leurre existe (cp peut echouer sur FS corrompu).
+    # Un fichier vide suffit : Onion ecrase via la bind, contenu non utilise.
+    cp "$TELMI_AUTORUN" "$DECOY" 2>/dev/null || : > "$DECOY"
+    if mount --bind "$DECOY" "$TELMI_AUTORUN" 2>/dev/null; then
+        log "Autorun shield: bind decoy active for Onion session"
+    else
+        log "Autorun shield: bind FAILED (B layer will heal at next boot)"
     fi
 fi
 
