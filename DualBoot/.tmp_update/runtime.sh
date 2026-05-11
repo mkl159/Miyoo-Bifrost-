@@ -19,24 +19,34 @@ log() { echo "[$(date +%H:%M:%S)] $*" >> "$LOG"; sync; }
 log "=== DualBoot start ==="
 
 # =============================================================
-#  Telmi-Sync: detection souple + restauration (couche B / heal)
-#  Telmi-Sync (DantSu/Telmi-Sync) detecte la SD si l'autorun.inf
-#  contient 'label = TelmiOS-v<X>.<Y>.<Z>' (X,Y,Z entiers, X >= 1).
-#  Logique :
-#   - Si label TelmiOS-v* deja present -> ACCEPTER (pas de rewrite,
-#     respecte les upgrades manuels et les versions futures), et
-#     memoriser comme "last-known-good" pour les restaurations.
-#   - Sinon (label Onion ou autre) -> restaurer le last-known-good,
-#     ou a defaut TELMI_LABEL_FALLBACK.
-#  TELMI_LABEL_FALLBACK ne sert qu'au premier boot sans historique
-#  (ou si le fichier de backup est corrompu).
+#  Telmi-Sync: sync autorun.inf avec la vraie version TelmiOS
+#  (couche B / heal). Priorite des sources pour le label canonique :
+#    1. $TELMIOS_DIR/.tmp_update/telmiVersion/version.txt
+#       (ecrit par le Makefile TelmiOS, ligne 64 : `echo -n "v$(VERSION)"`)
+#       -> source de verite : si TelmiOS upgrade, le label suit auto
+#    2. Label actuel de autorun.inf s'il est deja un TelmiOS-v* valide
+#       (si TelmiOS pas installe, on preserve ce qu'on a)
+#    3. Last-known-good memorise dans $sysdir/config/telmi_label
+#    4. Hardcode TELMI_LABEL_FALLBACK (premier boot, tout absent)
+#
+#  Apres avoir derive canonical_label, on synchronise l'autorun
+#  si different (cas typique : Onion ecrase, ou TelmiOS upgrade).
 # =============================================================
 TELMI_LABEL_FALLBACK="TelmiOS-v1.10.1"
 TELMI_LABEL_FILE="$sysdir/config/telmi_label"
+TELMI_VERSION_FILE="$TELMIOS_DIR/.tmp_update/telmiVersion/version.txt"
 TELMI_AUTORUN=/mnt/SDCARD/autorun.inf
 
-# 'tr -d \\r' : tolerer CRLF (DualBoot/autorun.inf ship en CRLF
-# via INSTALLER_SD.ps1 sur Windows). grep -E : regex etendu.
+# --- Source 1 : fichier de version TelmiOS (autoritaire) ---
+canonical_label=""
+if [ -f "$TELMI_VERSION_FILE" ]; then
+    _ver=$(tr -d '\r\n ' < "$TELMI_VERSION_FILE" 2>/dev/null)
+    if echo "$_ver" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+        canonical_label="TelmiOS-$_ver"
+    fi
+fi
+
+# --- Lecture du label actuel sur la SD ('tr -d \\r' pour CRLF) ---
 current_label=""
 if [ -f "$TELMI_AUTORUN" ]; then
     current_label=$(tr -d '\r' < "$TELMI_AUTORUN" 2>/dev/null \
@@ -44,26 +54,35 @@ if [ -f "$TELMI_AUTORUN" ]; then
         | sed 's/^label = //')
 fi
 
-if [ -n "$current_label" ]; then
-    # Label Telmi valide. Memoriser si change (idempotent).
-    if [ "$(head -1 "$TELMI_LABEL_FILE" 2>/dev/null)" != "$current_label" ]; then
-        mkdir -p "$(dirname "$TELMI_LABEL_FILE")" 2>/dev/null
-        echo "$current_label" > "$TELMI_LABEL_FILE"
-        sync
-        log "Autorun: Telmi label memorise -> $current_label"
+# --- Sources 2-4 : fallback si TelmiOS file manque/invalide ---
+if [ -z "$canonical_label" ]; then
+    if [ -n "$current_label" ]; then
+        # Source 2 : autorun actuel deja valide -> on garde
+        canonical_label="$current_label"
+    else
+        # Source 3 : last-known-good (revalide strict)
+        canonical_label=$(head -1 "$TELMI_LABEL_FILE" 2>/dev/null \
+            | grep -E '^TelmiOS-v[0-9]+\.[0-9]+\.[0-9]+$')
+        # Source 4 : fallback hardcode
+        [ -z "$canonical_label" ] && canonical_label="$TELMI_LABEL_FALLBACK"
     fi
-else
-    # Label absent ou ecrase (Onion). Restaurer le last-known-good,
-    # revalide avec le meme regex strict que pour current_label.
-    restore_label=$(head -1 "$TELMI_LABEL_FILE" 2>/dev/null \
-        | grep -E '^TelmiOS-v[0-9]+\.[0-9]+\.[0-9]+$')
-    [ -z "$restore_label" ] && restore_label="$TELMI_LABEL_FALLBACK"
-    log "Autorun drift -> restoring label = $restore_label"
+fi
+
+# --- Sync autorun.inf si different du canonique ---
+if [ "$current_label" != "$canonical_label" ]; then
+    log "Autorun sync : '$current_label' -> '$canonical_label'"
     cat > "$TELMI_AUTORUN" << EOF
 [autorun]
 icon  = .tmp_update/res/sdcard.ico
-label = $restore_label
+label = $canonical_label
 EOF
+    sync
+fi
+
+# --- Persiste canonical_label comme last-known-good (idempotent) ---
+if [ "$(head -1 "$TELMI_LABEL_FILE" 2>/dev/null)" != "$canonical_label" ]; then
+    mkdir -p "$(dirname "$TELMI_LABEL_FILE")" 2>/dev/null
+    echo "$canonical_label" > "$TELMI_LABEL_FILE"
     sync
 fi
 
