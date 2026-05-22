@@ -45,6 +45,9 @@ VIBRATION_CONFIRM=100
 PASSWORD_PROTECT="none"
 PASSWORD_SEQUENCE=""
 CONFIG_SEQUENCE="UP UP DOWN DOWN"
+BOOT_MODE="menu"
+KONAMI_SEQUENCE="UP UP DOWN DOWN LEFT RIGHT LEFT RIGHT B"
+KONAMI_TIMEOUT=5
 
 _is_num() { case "$1" in ''|*[!0-9]*) return 1 ;; *) return 0 ;; esac; }
 
@@ -83,6 +86,12 @@ _safe_read_cfg() {
                 _is_valid_btn_seq "$_val" && PASSWORD_SEQUENCE="$_val" ;;
             CONFIG_SEQUENCE)
                 _is_valid_btn_seq "$_val" && CONFIG_SEQUENCE="$_val" ;;
+            BOOT_MODE)
+                case "$_val" in menu|stealth_telmios|stealth_onion) BOOT_MODE="$_val" ;; esac ;;
+            KONAMI_SEQUENCE)
+                _is_valid_btn_seq "$_val" && KONAMI_SEQUENCE="$_val" ;;
+            KONAMI_TIMEOUT)
+                _is_num "$_val" && [ "$_val" -ge 1 ] && [ "$_val" -le 30 ] && KONAMI_TIMEOUT="$_val" ;;
         esac
     done < "$_cfg"
 }
@@ -321,9 +330,12 @@ do_save_config() {
         echo "PASSWORD_PROTECT=$PASSWORD_PROTECT"
         echo "PASSWORD_SEQUENCE=\"$PASSWORD_SEQUENCE\""
         echo "CONFIG_SEQUENCE=\"$CONFIG_SEQUENCE\""
+        echo "BOOT_MODE=$BOOT_MODE"
+        echo "KONAMI_SEQUENCE=\"$KONAMI_SEQUENCE\""
+        echo "KONAMI_TIMEOUT=$KONAMI_TIMEOUT"
     } > "$CONFIG"
     sync
-    log "Config saved: PP=$PASSWORD_PROTECT VP=$VIBRATION_POWER PW='$PASSWORD_SEQUENCE' CS='$CONFIG_SEQUENCE'"
+    log "Config saved: PP=$PASSWORD_PROTECT VP=$VIBRATION_POWER PW='$PASSWORD_SEQUENCE' CS='$CONFIG_SEQUENCE' BM=$BOOT_MODE KS='$KONAMI_SEQUENCE' KT=${KONAMI_TIMEOUT}s"
 }
 
 # Rechargement securise de la config (pour annulation)
@@ -474,8 +486,47 @@ cfg_set_vibration() {
     done
 }
 
+# Sous-menu : choix du mode de demarrage (modifie BOOT_MODE)
+cfg_set_bootmode() {
+    local _idx=0
+    case "$BOOT_MODE" in
+        menu)            _idx=0 ;;
+        stealth_telmios) _idx=1 ;;
+        stealth_onion)   _idx=2 ;;
+    esac
+
+    show_menu "config_bootmode_${_idx}"
+    > "$KEY_FILE"
+
+    while true; do
+        local _raw _k
+        _raw=$(_wait_cfg_key 1) || continue
+        _k=$(_norm_key "$_raw")
+        case "$_k" in
+            $KEY_LEFT)
+                _idx=$(( (_idx-1+3) % 3 ))
+                show_menu "config_bootmode_${_idx}"
+                vibrate "$VIBRATION_SELECT" ;;
+            $KEY_RIGHT)
+                _idx=$(( (_idx+1) % 3 ))
+                show_menu "config_bootmode_${_idx}"
+                vibrate "$VIBRATION_SELECT" ;;
+            $KEY_A)
+                case $_idx in
+                    0) BOOT_MODE="menu"            ;;
+                    1) BOOT_MODE="stealth_telmios" ;;
+                    2) BOOT_MODE="stealth_onion"   ;;
+                esac
+                vibrate "$VIBRATION_CONFIRM"
+                log "Config: BOOT_MODE=$BOOT_MODE"; return ;;
+            $KEY_SELECT) return ;;
+        esac
+    done
+}
+
 # Saisie d'une nouvelle sequence de boutons
 # $1 : nom de l'image a afficher
+# $2 : nombre maximum de boutons (defaut 8, max 10 pour le konami)
 # Ecrit le resultat dans NEW_CFG_SEQUENCE (noms boutons)
 # Retourne 0 si valide, 1 si annule/vide
 cfg_enter_sequence() {
@@ -485,14 +536,15 @@ cfg_enter_sequence() {
 
     local _codes="" _count=0
 
-    while [ $_count -lt 8 ]; do
+    local _max_btn="${2:-8}"
+    while [ $_count -lt $_max_btn ]; do
         local _raw _k
         _raw=$(_wait_cfg_key 1) || continue
         _k=$(_norm_key "$_raw")
         case "$_k" in
             $KEY_SELECT)  return 1 ;;
             $KEY_A)       break    ;;
-            $KEY_UP|$KEY_DOWN|$KEY_LEFT|$KEY_RIGHT|$KEY_L1|$KEY_R1|$KEY_X|$KEY_Y|$KEY_SELECT|$KEY_START)
+            $KEY_UP|$KEY_DOWN|$KEY_LEFT|$KEY_RIGHT|$KEY_L1|$KEY_R1|$KEY_X|$KEY_Y|$KEY_B|$KEY_START)
                 _codes="$_codes $_k"
                 _count=$((_count+1))
                 vibrate 25 ;;
@@ -505,10 +557,10 @@ cfg_enter_sequence() {
     return 0
 }
 
-# Menu de configuration principal (6 items)
+# Menu de configuration principal (8 items)
 run_config_menu() {
     log "=== Config menu ==="
-    local _item=0 _max=6 _modified=0
+    local _item=0 _max=8 _modified=0
 
     show_menu "config_main_${_item}"
     > "$KEY_FILE"
@@ -545,13 +597,21 @@ run_config_menu() {
                         fi ;;
                     3)  cfg_set_vibration
                         _modified=1 ;;
-                    4)  # Sauvegarder et quitter
+                    4)  cfg_set_bootmode
+                        _modified=1 ;;
+                    5)  if cfg_enter_sequence "config_konami_entry" 10 && [ -n "$NEW_CFG_SEQUENCE" ]; then
+                            KONAMI_SEQUENCE="$NEW_CFG_SEQUENCE"
+                            _modified=1
+                            vibrate "$VIBRATION_CONFIRM"
+                            log "Config: KONAMI_SEQUENCE='$KONAMI_SEQUENCE'"
+                        fi ;;
+                    6)  # Sauvegarder et quitter
                         do_save_config
                         show_menu "config_saved"
                         sleep 2
                         log "Config: sauvegarde et sortie"
                         return ;;
-                    5)  # Quitter sans sauvegarder
+                    7)  # Quitter sans sauvegarder
                         [ "$_modified" -eq 1 ] && _reload_config
                         log "Config: sortie sans sauvegarde"
                         return ;;
@@ -639,6 +699,90 @@ if [ "$FB_W" = "752" ] && [ "$FB_H" = "560" ]; then
 else
     RES_SUFFIX=""
     log "Resolution FB: ${FB_W}x${FB_H} -> images standard"
+fi
+
+# =============================================================
+#  MODE STEALTH : boot silencieux avec acces au menu via Konami code
+#  Si BOOT_MODE != menu et pas de .autoboot file en cours :
+#    - aucun affichage de menu
+#    - ecoute la sequence Konami pendant KONAMI_TIMEOUT secondes
+#    - si la sequence est saisie : revele le menu (comportement normal)
+#    - sinon : boot direct sur l'OS configure (stealth_telmios / stealth_onion)
+# =============================================================
+if [ "$AUTOBOOT" = "0" ] && [ "$BOOT_MODE" != "menu" ]; then
+    # Pre-validation de la sequence konami : ininitialise -> bascule en mode menu
+    # pour eviter un verrouillage (ex: si l'utilisateur a vide accidentellement la sequence)
+    _konami_check=$(_seq_to_codes $KONAMI_SEQUENCE)
+    _konami_check=$(echo $_konami_check)
+    _klen_check=$(echo "$_konami_check" | wc -w)
+    if [ "$_klen_check" -lt 2 ]; then
+        log "STEALTH: KONAMI_SEQUENCE trop courte (${_klen_check} btns) -> fallback mode menu"
+        BOOT_MODE="menu"
+    fi
+fi
+
+if [ "$AUTOBOOT" = "0" ] && [ "$BOOT_MODE" != "menu" ]; then
+    case "$BOOT_MODE" in
+        stealth_telmios) SELECTION="telmios" ;;
+        stealth_onion)   SELECTION="onion"   ;;
+    esac
+    log "STEALTH: mode=$BOOT_MODE target=$SELECTION timeout=${KONAMI_TIMEOUT}s"
+
+    # Demarrer les lecteurs en silence (pas d'affichage menu)
+    rm -f "$KEY_FILE"
+    _start_readers "$KEY_FILE" "raw"
+    STEALTH_PIDS="$_STARTED_PIDS"
+
+    # Sequence Konami attendue, normalisee (codes separes par espaces)
+    _konami="$_konami_check"
+    _klen="$_klen_check"
+    log "STEALTH: konami expected (${_klen} btns)"
+
+    _buffer=""
+    _bcount=0
+    _kt=0
+    _max_kt=$((KONAMI_TIMEOUT * 10))
+    _konami_ok=0
+
+    while [ $_kt -lt $_max_kt ] && [ "$_klen" -gt 0 ]; do
+        if [ -s "$KEY_FILE" ]; then
+            _raw=$(tail -1 "$KEY_FILE" 2>/dev/null)
+            > "$KEY_FILE"
+            _kn=$(_norm_key "$_raw")
+            _buffer="$_buffer $_kn"
+            _bcount=$((_bcount+1))
+
+            # Fenetre glissante : ne garder que les _klen dernieres touches
+            if [ $_bcount -gt $_klen ]; then
+                _buffer=$(echo "$_buffer" | awk -v n=$_klen '{ for(i=NF-n+1;i<=NF;i++) printf "%s ",$i }')
+            fi
+            _normalized=$(echo $_buffer)
+
+            if [ "$_normalized" = "$_konami" ]; then
+                _konami_ok=1
+                log "STEALTH: KONAMI MATCH -> reveler menu"
+                break
+            fi
+        fi
+        sleep 0.1
+        _kt=$((_kt+1))
+    done
+
+    _stop_readers "$STEALTH_PIDS"
+    rm -f "$KEY_FILE"
+
+    if [ "$_konami_ok" = "1" ]; then
+        # Code reussi : vibration de confirmation et bascule en mode menu
+        vibrate 250
+        sleep 0.1
+        vibrate 100
+        # AUTOBOOT reste 0 -> le bloc menu interactif ci-dessous va s'executer
+    else
+        # Pas de konami : skip menu, boot direct
+        log "STEALTH: timeout -> boot direct $SELECTION"
+        AUTOBOOT=1
+        CONFIRM_METHOD="stealth"
+    fi
 fi
 
 if [ "$AUTOBOOT" = "0" ]; then

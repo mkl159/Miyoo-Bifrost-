@@ -13,6 +13,9 @@
 
 Un bootloader léger qui affiche un menu graphique au démarrage pour choisir entre **OnionOS** (retrogaming) et **TelmiOS** (histoires interactives pour enfants), avec protection parentale par code secret optionnelle.
 
+> 🧪 **BETA — Mode Furtif + Code Konami** (branche `beta`)
+> Nouveau : boot direct sur TelmiOS (ou OnionOS) avec le menu Bifrost caché. Le menu reste accessible via un **Code Konami** configurable au démarrage. Idéal pour offrir une console aux enfants sans qu'ils voient le menu de selection. Voir la section [Mode Furtif](#mode-furtif-bêta) ci-dessous.
+
 > 🤖 Ce projet a été entièrement **vibe codé avec [Claude Code](https://claude.ai/code)** — l'IA de développement d'Anthropic.
 
 ---
@@ -280,6 +283,29 @@ Il est possible de configurer Bifrost **directement depuis la Miyoo**, sans acc�
 
 Au démarrage, si l'OS protégé est sélectionné, un écran cadenas apparaît. Entre la séquence définie dans `PASSWORD_SEQUENCE`. Appuie sur **B** pour annuler et revenir au menu.
 
+### Mode Furtif (BÊTA)
+
+Cache le menu Bifrost au démarrage et boote directement sur l'OS configuré. Le menu reste accessible via un **Code Konami** pendant un court délai après l'allumage.
+
+**Cas d'usage :** offrir la console à un enfant pour qu'il utilise TelmiOS naturellement, sans voir le menu de sélection. L'adulte peut révéler le menu et basculer sur OnionOS en pressant la séquence secrète.
+
+```sh
+BOOT_MODE=stealth_telmios           # menu / stealth_telmios / stealth_onion
+KONAMI_SEQUENCE="UP UP DOWN DOWN LEFT RIGHT LEFT RIGHT B"
+KONAMI_TIMEOUT=5                    # secondes d'écoute de la séquence (1-30)
+```
+
+**Comportement :**
+- `menu` (défaut) : menu affiché au démarrage comme avant
+- `stealth_telmios` : aucun affichage, TelmiOS boote après `KONAMI_TIMEOUT` secondes
+- `stealth_onion` : pareil mais boote sur OnionOS
+
+Pendant la fenêtre d'écoute, presser la séquence Konami fait apparaître le menu normalement. Le matching utilise une **fenêtre glissante** sur les dernières touches pressées (pas besoin de partir de zéro si on se trompe).
+
+**Configuration via le menu sur la console :** appuyer **X** dans le menu Bifrost, entrer le code admin, puis sélectionner *Mode de démarrage* et *Code Konami*. Le menu admin accepte jusqu'à 10 boutons pour la séquence.
+
+> ⚠️ **Sécurité** : si `KONAMI_SEQUENCE` est vide ou < 2 boutons, le mode furtif est désactivé automatiquement au boot pour éviter tout verrouillage. Le menu s'affiche alors normalement.
+
 ### Compatibilité Telmi-Sync
 
 Depuis la **v1.1.0**, la carte SD est pleinement reconnue par **Telmi-Sync** (l'application Windows de gestion des histoires TelmiOS) :
@@ -367,6 +393,9 @@ Projet communautaire non officiel. OnionOS et TelmiOS sont des projets indépend
 **Dual Boot for Miyoo Mini / Mini Plus — OnionOS + TelmiOS**
 
 A lightweight bootloader that displays a graphical menu at startup to choose between **OnionOS** (retrogaming) and **TelmiOS** (interactive stories for children), with optional parental lock via button sequence.
+
+> 🧪 **BETA — Stealth Boot + Konami Code** (`beta` branch)
+> New: boot directly into TelmiOS (or OnionOS) with the Bifrost menu hidden. The menu remains accessible via a configurable **Konami Code** at startup. Perfect for handing the console to a child without exposing the OS selector. See [Stealth Mode](#stealth-mode-beta) below.
 
 > 🤖 This project was entirely **vibe coded with [Claude Code](https://claude.ai/code)** — Anthropic's AI development tool.
 
@@ -606,6 +635,29 @@ You can configure Bifrost **directly from the Miyoo**, without a PC:
    - Available buttons: `UP DOWN LEFT RIGHT A B X Y L R START SELECT`
 
 At startup, if the locked OS is selected, a lock screen appears. Enter the sequence defined in `PASSWORD_SEQUENCE`. Press **B** to cancel and return to the menu.
+
+### Stealth Mode (BETA)
+
+Hides the Bifrost menu at startup and boots directly into the configured OS. The menu remains accessible via a **Konami Code** during a short listening window after power-on.
+
+**Use case:** hand the console to a child so they use TelmiOS naturally, without seeing the OS selector. An adult can reveal the menu and switch to OnionOS by pressing the secret sequence.
+
+```sh
+BOOT_MODE=stealth_telmios           # menu / stealth_telmios / stealth_onion
+KONAMI_SEQUENCE="UP UP DOWN DOWN LEFT RIGHT LEFT RIGHT B"
+KONAMI_TIMEOUT=5                    # listening window in seconds (1-30)
+```
+
+**Behavior:**
+- `menu` (default): boot menu displayed as before
+- `stealth_telmios`: no display, TelmiOS boots after `KONAMI_TIMEOUT` seconds
+- `stealth_onion`: same but boots into OnionOS
+
+During the listening window, pressing the Konami sequence reveals the menu normally. Matching uses a **sliding window** on the last pressed keys (no need to restart if you mistype).
+
+**On-device configuration:** press **X** in the Bifrost menu, enter the admin code, then select *Boot Mode* and *Konami Code*. The admin menu accepts up to 10 buttons per sequence.
+
+> ⚠️ **Safety:** if `KONAMI_SEQUENCE` is empty or < 2 buttons, stealth mode is automatically disabled at boot to prevent lockouts — the menu displays normally.
 
 ### Telmi-Sync Compatibility
 

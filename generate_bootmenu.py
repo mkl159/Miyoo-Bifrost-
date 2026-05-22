@@ -130,6 +130,8 @@ CONFIG_TEXTS = {
             ("Code de verrouillage",   "Modifier la sequence de deverrouillage"),
             ("Code administrateur",    "Modifier le code de ce menu config"),
             ("Vibrations",             "Intensite des retours haptiques"),
+            ("Mode de demarrage",      "Menu visible ou demarrage furtif"),
+            ("Code Konami",            "Sequence secrete pour reveler le menu"),
             ("Sauvegarder et quitter", "Enregistrer toutes les modifications"),
             ("Annuler",                "Quitter sans sauvegarder"),
         ],
@@ -148,14 +150,22 @@ CONFIG_TEXTS = {
             ("Moyenne",    "Vibrations standard  (defaut)"),
             ("Forte",      "Vibrations intenses"),
         ],
+        "bootmode_title":  "MODE DE DEMARRAGE",
+        "bootmode_options": [
+            ("Menu visible",     "Affichage classique du menu de boot"),
+            ("Furtif TelmiOS",   "Boot direct sur TelmiOS, menu via Konami"),
+            ("Furtif OnionOS",   "Boot direct sur OnionOS, menu via Konami"),
+        ],
         "choice_nav":     "Gauche / Droite = Choisir   |   A = Confirmer   |   SELECT = Retour",
         "pw_title":       "CODE DE VERROUILLAGE",
         "pw_sub":         "Entrez la nouvelle sequence secrete",
         "cfg_title":      "CODE ADMINISTRATEUR",
         "cfg_sub":        "Entrez le nouveau code d'administration",
-        "entry_hint1":    "Appuyez sur les boutons de votre sequence  (max 8 boutons)",
+        "konami_title":   "CODE KONAMI",
+        "konami_sub":     "Sequence pour reveler le menu en mode furtif",
+        "entry_hint1":    "Appuyez sur les boutons de votre sequence",
         "entry_hint2":    "A = Valider   |   SELECT = Annuler",
-        "entry_btns":     "Boutons valides :  Haut  Bas  Gauche  Droite  X  Y  L  R  START  SELECT",
+        "entry_btns":     "Boutons valides :  Haut  Bas  Gauche  Droite  A  B  X  Y  L  R  START  SELECT",
         "saved_title":    "CONFIGURATION SAUVEGARDEE !",
         "saved_sub":      "Les modifications ont ete enregistrees.",
     },
@@ -168,6 +178,8 @@ CONFIG_TEXTS = {
             ("Lock code",           "Change the unlock sequence"),
             ("Admin code",          "Change this config menu's code"),
             ("Vibrations",          "Haptic feedback intensity"),
+            ("Boot Mode",           "Visible menu or stealth boot"),
+            ("Konami Code",         "Secret sequence to reveal the menu"),
             ("Save and exit",       "Save all changes"),
             ("Cancel",              "Exit without saving"),
         ],
@@ -186,14 +198,22 @@ CONFIG_TEXTS = {
             ("Medium",    "Standard vibrations  (default)"),
             ("Strong",    "Intense vibrations"),
         ],
+        "bootmode_title":  "BOOT MODE",
+        "bootmode_options": [
+            ("Visible Menu",   "Classic boot menu display"),
+            ("Stealth TelmiOS","Boot directly to TelmiOS, Konami for menu"),
+            ("Stealth OnionOS","Boot directly to OnionOS, Konami for menu"),
+        ],
         "choice_nav":     "Left / Right = Choose   |   A = Confirm   |   SELECT = Back",
         "pw_title":       "LOCK CODE",
         "pw_sub":         "Enter the new secret sequence",
         "cfg_title":      "ADMIN CODE",
         "cfg_sub":        "Enter the new administration code",
-        "entry_hint1":    "Press the buttons of your sequence  (max 8 buttons)",
+        "konami_title":   "KONAMI CODE",
+        "konami_sub":     "Secret sequence to reveal the menu in stealth mode",
+        "entry_hint1":    "Press the buttons of your sequence",
         "entry_hint2":    "A = Validate   |   SELECT = Cancel",
-        "entry_btns":     "Valid buttons :  Up  Down  Left  Right  X  Y  L  R  START  SELECT",
+        "entry_btns":     "Valid buttons :  Up  Down  Left  Right  A  B  X  Y  L  R  START  SELECT",
         "saved_title":    "CONFIGURATION SAVED !",
         "saved_sub":      "Your changes have been saved.",
     },
@@ -206,6 +226,8 @@ CONFIG_TEXTS = {
             ("Codigo bloqueo",      "Cambiar la secuencia de desbloqueo"),
             ("Codigo admin",        "Cambiar el codigo de este menu"),
             ("Vibraciones",         "Intensidad de respuesta haptica"),
+            ("Modo de arranque",    "Menu visible o arranque furtivo"),
+            ("Codigo Konami",       "Secuencia secreta para revelar el menu"),
             ("Guardar y salir",     "Guardar todos los cambios"),
             ("Cancelar",            "Salir sin guardar"),
         ],
@@ -224,14 +246,22 @@ CONFIG_TEXTS = {
             ("Media",       "Vibraciones estandar  (defecto)"),
             ("Fuerte",      "Vibraciones intensas"),
         ],
+        "bootmode_title":  "MODO DE ARRANQUE",
+        "bootmode_options": [
+            ("Menu visible",    "Visualizacion clasica del menu"),
+            ("Furtivo TelmiOS", "Arranque directo, menu via Konami"),
+            ("Furtivo OnionOS", "Arranque directo, menu via Konami"),
+        ],
         "choice_nav":     "Izq / Der = Elegir   |   A = Confirmar   |   SELECT = Volver",
         "pw_title":       "CODIGO DE BLOQUEO",
         "pw_sub":         "Ingresa la nueva secuencia secreta",
         "cfg_title":      "CODIGO ADMINISTRADOR",
         "cfg_sub":        "Ingresa el nuevo codigo de administracion",
-        "entry_hint1":    "Pulsa los botones de tu secuencia  (max 8 botones)",
+        "konami_title":   "CODIGO KONAMI",
+        "konami_sub":     "Secuencia para revelar el menu en modo furtivo",
+        "entry_hint1":    "Pulsa los botones de tu secuencia",
         "entry_hint2":    "A = Validar   |   SELECT = Cancelar",
-        "entry_btns":     "Botones validos :  Arriba  Abajo  Izq  Der  X  Y  L  R  START  SELECT",
+        "entry_btns":     "Botones validos :  Arriba  Abajo  Izq  Der  A  B  X  Y  L  R  START  SELECT",
         "saved_title":    "CONFIGURACION GUARDADA !",
         "saved_sub":      "Los cambios han sido guardados.",
     },
@@ -625,7 +655,7 @@ def create_config_main(item_idx: int, lang="FR", w=640, h=480) -> Image.Image:
     ITEM_H   = (BOT - TOP) // N
     MARGIN   = 18
 
-    accents = [C_CFG_ACC, C_CFG_ACC, C_CFG_ACC, C_VIB_ACC, C_SAVE_ACC, C_CANCEL_ACC]
+    accents = [C_CFG_ACC, C_CFG_ACC, C_CFG_ACC, C_VIB_ACC, C_PROT_ACC, C_VIB_ACC, C_SAVE_ACC, C_CANCEL_ACC]
 
     for i, (name, desc) in enumerate(items):
         iy0     = TOP + i * ITEM_H
@@ -729,13 +759,21 @@ def create_config_choice(screen_type: str, option_idx: int, lang="FR", w=640, h=
 
 
 def create_config_entry(entry_type: str, lang="FR", w=640, h=480) -> Image.Image:
-    """Ecran de saisie d'une nouvelle sequence de boutons."""
+    """Ecran de saisie d'une nouvelle sequence de boutons.
+    entry_type : "pw" (8 slots) / "cfg" (8 slots) / "konami" (10 slots)
+    """
     img, draw, TH, ct = _cfg_base(lang, w, h)
     cx = w // 2
 
-    title  = ct["pw_title"]  if entry_type == "pw" else ct["cfg_title"]
-    sub    = ct["pw_sub"]    if entry_type == "pw" else ct["cfg_sub"]
-    accent = C_PROT_ACC if entry_type == "pw" else C_CFG_ACC
+    if entry_type == "konami":
+        title, sub, accent = ct["konami_title"], ct["konami_sub"], C_VIB_ACC
+        slot_count = 10
+    elif entry_type == "pw":
+        title, sub, accent = ct["pw_title"], ct["pw_sub"], C_PROT_ACC
+        slot_count = 8
+    else:
+        title, sub, accent = ct["cfg_title"], ct["cfg_sub"], C_CFG_ACC
+        slot_count = 8
 
     font_t = get_font(16, bold=True)
     font_s = get_font(14)
@@ -744,32 +782,127 @@ def create_config_entry(entry_type: str, lang="FR", w=640, h=480) -> Image.Image
     text_center(draw, title, TH + 12, font_t, (*accent, 220), w)
     text_center(draw, sub,   TH + 36, font_s, C_WHITE, w)
 
-    # Slots de saisie (8 emplacements)
+    # Slots de saisie (largeur adaptee au nombre)
     SY      = TH + 72
-    SLOT_W  = 52
     SLOT_H  = 46
-    SLOT_G  = 10
-    TOTAL   = 8 * SLOT_W + 7 * SLOT_G
+    SLOT_G  = 8 if slot_count >= 10 else 10
+    AVAIL   = w - 2 * 36
+    SLOT_W  = (AVAIL - (slot_count - 1) * SLOT_G) // slot_count
+    if SLOT_W > 52: SLOT_W = 52
+    TOTAL   = slot_count * SLOT_W + (slot_count - 1) * SLOT_G
     sx0     = (w - TOTAL) // 2
 
-    for s in range(8):
+    for s in range(slot_count):
         sx = sx0 + s * (SLOT_W + SLOT_G)
         draw.rounded_rectangle([sx, SY, sx + SLOT_W, SY + SLOT_H],
                                radius=6, fill=(20, 26, 44),
                                outline=(*C_DIM, 110), width=1)
         mid_y = SY + SLOT_H // 2
-        draw.line([(sx + 14, mid_y), (sx + SLOT_W - 14, mid_y)],
+        line_pad = max(10, SLOT_W // 4)
+        draw.line([(sx + line_pad, mid_y), (sx + SLOT_W - line_pad, mid_y)],
                  fill=(*C_DIM, 90), width=2)
 
     IY = SY + SLOT_H + 20
     draw.rounded_rectangle([36, IY - 8, w - 36, IY + 56],
                            radius=8, fill=(18, 24, 42), outline=(*accent, 90), width=1)
-    text_center(draw, ct["entry_hint1"], IY + 6,  font_h, C_GRAY, w)
+    hint1 = ct["entry_hint1"] + f"  (max {slot_count} boutons)" if lang == "FR" else \
+            ct["entry_hint1"] + (f"  (max {slot_count} botones)" if lang == "ES" else f"  (max {slot_count} buttons)")
+    text_center(draw, hint1, IY + 6,  font_h, C_GRAY, w)
     text_center(draw, ct["entry_hint2"], IY + 28, get_font(12, bold=True), (*accent, 200), w)
 
     text_center(draw, ct["entry_btns"], IY + 72, font_h, C_DIM, w)
 
     _cfg_bottom(draw, "", w, h, accent)
+    return img
+
+
+def create_config_bootmode(option_idx: int, lang="FR", w=640, h=480) -> Image.Image:
+    """Ecran de choix du mode de demarrage (3 cartes horizontales)."""
+    img, draw, TH, ct = _cfg_base(lang, w, h)
+
+    title   = ct["bootmode_title"]
+    options = ct["bootmode_options"]
+    accent  = C_PROT_ACC
+
+    font_title = get_font(16, bold=True)
+    text_center(draw, title, TH + 10, font_title, (*accent, 220), w)
+
+    GRID_TOP = TH + 40
+    GRID_BOT = h - 50
+    PAD      = 12
+    CARD_H   = GRID_BOT - GRID_TOP - PAD
+    CARD_W   = (w - 4 * PAD) // 3
+
+    positions = [
+        (PAD,                          GRID_TOP),
+        (PAD * 2 + CARD_W,             GRID_TOP),
+        (PAD * 3 + CARD_W * 2,         GRID_TOP),
+    ]
+
+    for i, (opt_name, opt_desc) in enumerate(options):
+        x0, y0 = positions[i]
+        x1, y1 = x0 + CARD_W, y0 + CARD_H
+        is_sel = (i == option_idx)
+        cx_c   = (x0 + x1) // 2
+
+        if is_sel:
+            draw.rounded_rectangle([x0, y0, x1, y1], radius=10,
+                                   fill=(30, 36, 58), outline=(*accent, 240), width=3)
+            draw.rounded_rectangle([x0 - 2, y0 - 2, x1 + 2, y1 + 2],
+                                   radius=12, fill=None, outline=(*accent, 55), width=2)
+        else:
+            draw.rounded_rectangle([x0, y0, x1, y1], radius=10,
+                                   fill=(16, 20, 34), outline=(*C_DIM, 90), width=1)
+
+        # Icone : carre pour menu, oeil pour stealth
+        icon_cy = y0 + 36
+        if i == 0:
+            # Menu : grille 2x2
+            for ix in range(2):
+                for iy in range(2):
+                    rx = cx_c - 14 + ix * 16
+                    ry = icon_cy - 8 + iy * 8
+                    draw.rectangle([rx, ry, rx + 12, ry + 5],
+                                   fill=(*accent, 230 if is_sel else 130))
+        else:
+            # Stealth : oeil ferme stylise
+            draw.arc([cx_c - 22, icon_cy - 12, cx_c + 22, icon_cy + 12],
+                     start=190, end=350,
+                     fill=(*accent, 230 if is_sel else 130), width=3)
+            draw.ellipse([cx_c - 5, icon_cy - 2, cx_c + 5, icon_cy + 8],
+                         fill=(*accent, 200 if is_sel else 100))
+
+        font_on = get_font(13, bold=is_sel)
+        font_od = get_font(9)
+        oc = C_WHITE if is_sel else lerp_color(C_WHITE, C_DIM, 0.55)
+        dc = (*accent, 180) if is_sel else (*C_DIM, 110)
+
+        bbox = draw.textbbox((0, 0), opt_name, font=font_on)
+        tw = bbox[2] - bbox[0]
+        # Truncate au besoin
+        text_y = y0 + CARD_H // 2 + 6
+        draw.text((cx_c - tw // 2, text_y), opt_name, font=font_on, fill=oc)
+
+        # Description multi-lignes si trop long
+        desc_y = text_y + 22
+        desc_words = opt_desc.split()
+        line, lines = "", []
+        for word in desc_words:
+            tentative = (line + " " + word).strip()
+            bb = draw.textbbox((0, 0), tentative, font=font_od)
+            if bb[2] - bb[0] > CARD_W - 16 and line:
+                lines.append(line)
+                line = word
+            else:
+                line = tentative
+        if line:
+            lines.append(line)
+        for li, ltext in enumerate(lines[:3]):
+            bb = draw.textbbox((0, 0), ltext, font=font_od)
+            lw = bb[2] - bb[0]
+            draw.text((cx_c - lw // 2, desc_y + li * 12), ltext, font=font_od, fill=dc)
+
+    _cfg_bottom(draw, ct["choice_nav"], w, h, accent)
     return img
 
 
@@ -855,14 +988,17 @@ def _generate_all_images(suffix, sd_res, w, h):
 
     cfg_specs = []
     cfg_specs.append(("config_access", None, None))
-    for i in range(6):
+    for i in range(8):
         cfg_specs.append((f"config_main_{i}", "main", i))
     for i in range(4):
         cfg_specs.append((f"config_protect_{i}", "protect", i))
     for i in range(4):
         cfg_specs.append((f"config_vib_{i}", "vib", i))
-    cfg_specs.append(("config_pw_entry",  "entry_pw",  None))
-    cfg_specs.append(("config_cfg_entry", "entry_cfg", None))
+    for i in range(3):
+        cfg_specs.append((f"config_bootmode_{i}", "bootmode", i))
+    cfg_specs.append(("config_pw_entry",     "entry_pw",     None))
+    cfg_specs.append(("config_cfg_entry",    "entry_cfg",    None))
+    cfg_specs.append(("config_konami_entry", "entry_konami", None))
     cfg_specs.append(("config_saved", "saved", None))
 
     for lang in ("FR", "EN", "ES"):
@@ -876,10 +1012,14 @@ def _generate_all_images(suffix, sd_res, w, h):
                 img = create_config_choice("protect", idx, lang, w, h)
             elif kind == "vib":
                 img = create_config_choice("vib", idx, lang, w, h)
+            elif kind == "bootmode":
+                img = create_config_bootmode(idx, lang, w, h)
             elif kind == "entry_pw":
                 img = create_config_entry("pw", lang, w, h)
             elif kind == "entry_cfg":
                 img = create_config_entry("cfg", lang, w, h)
+            elif kind == "entry_konami":
+                img = create_config_entry("konami", lang, w, h)
             elif kind == "saved":
                 img = create_config_saved(lang, w, h)
             else:
