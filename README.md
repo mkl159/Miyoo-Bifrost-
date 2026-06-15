@@ -61,6 +61,7 @@ Un bootloader léger qui affiche un menu graphique au démarrage pour choisir en
 - **Installateur Windows EXE** avec interface graphique (log coloré, barre de progression) — formate la SD en FAT32, copie tout, génère les images automatiquement
 - **Installateur PowerShell** alternatif (même fonctionnement, ligne de commande)
 - **Installateur macOS** (`install_macos.sh`) *(non testé — retours bienvenus)*
+- **Installateur Linux / Pop!_OS** (`install_linux.sh`) — compatible Ubuntu/Debian, merci à [@bsoufflet](https://github.com/bsoufflet) pour cette version 🙏 *(retours bienvenus)*
 
 ---
 
@@ -176,6 +177,15 @@ Windows refuse de formater en FAT32 les cartes > 32 Go via son interface graphiq
 3. Des fenêtres de sélection Finder s'ouvrent pour choisir les dossiers
 
 > ⚠️ **Non testé** : L'installateur macOS (`install_macos.sh`) n'a **jamais été exécuté** sur console Miyoo réelle ni validé sur macOS. La logique copie les mêmes fichiers que l'installateur Windows, mais le script shell lui-même n'a pas été testé. La génération des images `.raw` et la détection des dossiers sont à vérifier. Utilise-le à tes risques — retours et corrections bienvenus via les Issues GitHub !
+
+**Linux / Pop!_OS (compatible Ubuntu/Debian) :**
+
+1. Ouvre un terminal dans le dossier `Miyoo-Bifrost`
+2. Lance : `bash install_linux.sh`
+3. Le script vérifie d'abord les dépendances (`zenity`, `rsync`, `dosfstools`, `python3`, `python3-pil`) et propose de les installer via `sudo apt` si besoin
+4. Des fenêtres de sélection s'ouvrent (via zenity) pour choisir les 3 dossiers
+
+> 🙏 **Merci à [@bsoufflet](https://github.com/bsoufflet)** pour cette version Linux / Pop!_OS. Comme la version macOS, elle reprend la logique de l'installateur Windows — retours et corrections bienvenus via les Issues GitHub !
 
 5. L'installateur fait tout automatiquement :
    - ✅ Détecte et formate en FAT32 si nécessaire
@@ -333,6 +343,7 @@ Le firmware Miyoo exécute `/mnt/SDCARD/.tmp_update/runtime.sh` au démarrage. B
 | `BUILD_EXE.bat` | Recompile `INSTALLER_BIFROST.cs` → `.exe` (double-clic) |
 | `INSTALLER_SD.ps1` | Installateur PowerShell alternatif (ligne de commande) |
 | `install_macos.sh` | Installateur macOS *(non testé — retours bienvenus)* |
+| `install_linux.sh` | Installateur Linux / Pop!_OS — compatible Ubuntu/Debian (merci [@bsoufflet](https://github.com/bsoufflet)) |
 
 ---
 
@@ -388,6 +399,7 @@ A lightweight bootloader that displays a graphical menu at startup to choose bet
 - **Windows EXE installer** with graphical interface (colored log, progress bar) — formats SD to FAT32, copies everything, generates images automatically
 - **PowerShell installer** as alternative (same logic, command line)
 - **macOS installer** (`install_macos.sh`) *(untested — feedback welcome)*
+- **Linux / Pop!_OS installer** (`install_linux.sh`) — Ubuntu/Debian compatible, thanks to [@bsoufflet](https://github.com/bsoufflet) for this version 🙏 *(feedback welcome)*
 
 ---
 
@@ -503,6 +515,15 @@ Windows refuses to format cards > 32 GB as FAT32 through its GUI. Use **[Rufus](
 3. Finder windows open to select the folders
 
 > ⚠️ **Untested** : The macOS installer (`install_macos.sh`) has **never been run** on a real Miyoo device or validated on macOS. The logic mirrors the Windows installer (file copying, image generation) but the shell script itself has not been tested. `.raw` image generation and folder detection should be verified. Use at your own risk — feedback and fixes welcome via GitHub Issues!
+
+**Linux / Pop!_OS (Ubuntu/Debian compatible):**
+
+1. Open a terminal in the `Miyoo-Bifrost` folder
+2. Run: `bash install_linux.sh`
+3. The script first checks dependencies (`zenity`, `rsync`, `dosfstools`, `python3`, `python3-pil`) and offers to install them via `sudo apt` if needed
+4. Selection windows open (via zenity) to choose the 3 folders
+
+> 🙏 **Thanks to [@bsoufflet](https://github.com/bsoufflet)** for this Linux / Pop!_OS version. Like the macOS version, it mirrors the Windows installer logic — feedback and fixes welcome via GitHub Issues!
 
 5. The installer does everything automatically:
    - ✅ Detects and formats to FAT32 if needed
@@ -660,6 +681,7 @@ The Miyoo firmware executes `/mnt/SDCARD/.tmp_update/runtime.sh` at startup. Bif
 | `BUILD_EXE.bat` | Recompiles `INSTALLER_BIFROST.cs` → `.exe` (double-click) |
 | `INSTALLER_SD.ps1` | Alternative PowerShell installer (command line) |
 | `install_macos.sh` | macOS installer *(untested — feedback welcome)* |
+| `install_linux.sh` | Linux / Pop!_OS installer — Ubuntu/Debian compatible (thanks [@bsoufflet](https://github.com/bsoufflet)) |
 
 ---
 
