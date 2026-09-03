@@ -1,7 +1,7 @@
 # Miyoo-Bifrost
 
-[![OnionOS](https://img.shields.io/badge/OnionOS-v4.3.1-4CAF50?style=for-the-badge&logo=github&logoColor=white)](https://github.com/OnionUI/Onion)
-[![TelmiOS](https://img.shields.io/badge/TelmiOS-v1.10.1-FF8C00?style=for-the-badge&logo=github&logoColor=white)](https://github.com/DantSu/Telmi-story-teller)
+[![OnionOS](https://img.shields.io/badge/OnionOS-v4.3.1--1%20%7C%20v4.4.0--beta-4CAF50?style=for-the-badge&logo=github&logoColor=white)](https://github.com/OnionUI/Onion)
+[![TelmiOS](https://img.shields.io/badge/TelmiOS-v1.10.3-FF8C00?style=for-the-badge&logo=github&logoColor=white)](https://github.com/DantSu/Telmi-story-teller)
 [![Rufus](https://img.shields.io/badge/Format%20SD-Rufus-blue?style=for-the-badge&logo=usb&logoColor=white)](https://rufus.ie)
 [![Vibe coded with Claude Code](https://img.shields.io/badge/Vibe%20coded%20with-Claude%20Code-blueviolet?style=for-the-badge&logo=anthropic&logoColor=white)](https://claude.ai/code)
 
@@ -69,10 +69,15 @@ Un bootloader léger qui affiche un menu graphique au démarrage pour choisir en
 
 ## Versions OS supportées
 
-| OS | Version testée |
+| OS | Versions prises en charge |
 |---|---|
-| OnionOS | v4.3.1-1 |
-| TelmiOS | v1.10.1 |
+| OnionOS | v4.3.1-1 (stable) · v4.4.0-beta |
+| TelmiOS | v1.10.3 · v1.10.x · v1.9.x |
+
+> Bifrost ne dépend d'aucun fichier propre à une version : il place chaque OS
+> dans son dossier et n'utilise que des chemins stables (`.tmp_update/`,
+> `miyoo/`, `miyoo354/`). Les arborescences d'OnionOS v4.4.0-beta et de
+> TelmiOS v1.10.3 sont identiques à celles des versions précédentes.
 
 ---
 
@@ -102,7 +107,7 @@ Avant de commencer, télécharge et prépare ces éléments sur ton PC :
 |---|---|
 | **Ce projet** (Miyoo-Bifrost) | Bouton vert **Code → Download ZIP** sur cette page |
 | **OnionOS** (ex: `Onion-v4.3.1-1.zip`) | [Releases OnionOS](https://github.com/OnionUI/Onion/releases) |
-| **TelmiOS** (ex: `TelmiOS_v1.10.1.zip`) | [Releases TelmiOS](https://github.com/DantSu/Telmi-story-teller/releases) |
+| **TelmiOS** (ex: `TelmiOS_v1.10.3.zip`) | [Releases TelmiOS](https://github.com/DantSu/Telmi-story-teller/releases) |
 | **Python 3** *(optionnel)* | [python.org/downloads](https://www.python.org/downloads/) — cocher *"Add to PATH"* |
 
 Extrais les trois archives dans n'importe quel dossier sur ton PC :
@@ -111,7 +116,7 @@ Extrais les trois archives dans n'importe quel dossier sur ton PC :
 📁 MonDossier\
     📁 Miyoo-Bifrost\            ← ce projet (extrait du ZIP)
     📁 Onion-v4.3.1-1\           ← contenu de l'archive OnionOS
-    📁 TelmiOS_v1.10.1\          ← contenu de l'archive TelmiOS
+    📁 TelmiOS_v1.10.3\          ← contenu de l'archive TelmiOS
 ```
 
 > ✅ **Les noms de dossiers n'ont pas besoin d'être modifiés** — l'installateur détecte automatiquement tout dossier commençant par `Onion` ou `Telmi`.
@@ -162,7 +167,7 @@ Windows refuse de formater en FAT32 les cartes > 32 Go via son interface graphiq
 4. Clique **Démarrer** — trois fenêtres de sélection s'ouvrent dans l'ordre :
    - 📁 **Carte SD** — sélectionne ton lecteur SD (ex: `E:\`)
    - 📁 **OnionOS** — sélectionne le dossier `Onion-v4.3.1-1`
-   - 📁 **TelmiOS** — sélectionne le dossier `TelmiOS_v1.10.1`
+   - 📁 **TelmiOS** — sélectionne le dossier `TelmiOS_v1.10.3`
 
 ![Installateur Windows](preview/installer_windows.jpg)
 
@@ -308,13 +313,46 @@ Pendant la fenêtre d'écoute, presser la séquence Konami fait apparaître le m
 
 ### Compatibilité Telmi-Sync
 
-Depuis la **v1.1.0**, la carte SD est pleinement reconnue par **Telmi-Sync** (l'application Windows de gestion des histoires TelmiOS) :
+La carte SD est pleinement reconnue par **Telmi-Sync** (l'application Windows de gestion des histoires TelmiOS) :
 
 - Les dossiers `Stories/`, `Saves/` et `Music/` sont placés **à la racine** de la SD
 - Telmi-Sync peut ajouter/supprimer des histoires sans reformater la carte
 - TelmiOS accède à ces dossiers transparemment via le système de bind mounts
 
+**Comment Telmi-Sync reconnaît la carte.** Il lit `autorun.inf` à la racine et y
+cherche un libellé de la forme `TelmiOS-vX.Y.Z`, puis ouvre `Saves/.parameters`
+et le lit comme du JSON. L'installateur Bifrost écrit ces deux fichiers :
+le libellé reprend la version de TelmiOS réellement installée (lue dans
+`telmios/.tmp_update/telmiVersion/version.txt`) et les paramètres sont copiés
+depuis l'archive TelmiOS. Si `Saves/.parameters` manque ou n'est pas du JSON
+valide, Telmi-Sync échoue à détecter la carte.
+
+**Vérification à chaque démarrage.** Ces deux fichiers vivent à la racine de la
+carte, là où n'importe quel outil PC peut les modifier ou les effacer. Bifrost
+les revalide donc à chaque allumage de la console, avant d'afficher le menu :
+
+| Contrôle | Réparation automatique |
+|---|---|
+| `autorun.inf` absent ou libellé périmé | Réécrit avec la version lue dans `telmios/.tmp_update/telmiVersion/version.txt` |
+| `Saves/.parameters` absent ou non-JSON | Recopié depuis `telmios/Saves/.parameters` |
+| `Stories/`, `Saves/` ou `Music/` effacés | Recréés |
+
+Rien n'est écrit si tout est déjà conforme. Le résultat de chaque contrôle est
+tracé dans `SD:\.tmp_update\logs\dualboot.log`. Conséquence pratique : après
+une mise à jour de TelmiOS, le libellé suit tout seul au démarrage suivant, et
+Telmi-Sync ne propose plus de mise à jour destructrice.
+
 > Pour mettre à jour les histoires : branche la SD au PC, ouvre Telmi-Sync — la carte est automatiquement reconnue.
+
+> ⚠️ **N'utilise pas le bouton « mettre à jour TelmiOS » de Telmi-Sync sur une
+> carte Bifrost.** Cette fonction décompresse l'archive de mise à jour
+> directement à la racine de la SD, ce qui remplace `.tmp_update/runtime.sh`,
+> c'est-à-dire le menu de démarrage Bifrost lui-même. La console redémarrerait
+> alors directement sur TelmiOS, sans plus proposer OnionOS.
+> Pour passer à une nouvelle version de TelmiOS, relance l'installateur Bifrost
+> avec la nouvelle archive : la configuration et les histoires sont conservées.
+> Tant que le libellé de `autorun.inf` correspond à la dernière version publiée,
+> Telmi-Sync ne propose aucune mise à jour.
 
 ---
 
@@ -422,10 +460,15 @@ A lightweight bootloader that displays a graphical menu at startup to choose bet
 
 ## Supported OS Versions
 
-| OS | Tested version |
+| OS | Supported versions |
 |---|---|
-| OnionOS | v4.3.1-1 |
-| TelmiOS | v1.10.1 |
+| OnionOS | v4.3.1-1 (stable) · v4.4.0-beta |
+| TelmiOS | v1.10.3 · v1.10.x · v1.9.x |
+
+> Bifrost depends on no version-specific file: it keeps each OS in its own
+> folder and only uses stable paths (`.tmp_update/`, `miyoo/`, `miyoo354/`).
+> The directory layouts of OnionOS v4.4.0-beta and TelmiOS v1.10.3 are
+> identical to the previous releases.
 
 ---
 
@@ -455,7 +498,7 @@ Download and prepare the following on your PC:
 |---|---|
 | **This project** (Miyoo-Bifrost) | Green **Code → Download ZIP** button on this page |
 | **OnionOS** (e.g. `Onion-v4.3.1-1.zip`) | [OnionOS Releases](https://github.com/OnionUI/Onion/releases) |
-| **TelmiOS** (e.g. `TelmiOS_v1.10.1.zip`) | [TelmiOS Releases](https://github.com/DantSu/Telmi-story-teller/releases) |
+| **TelmiOS** (e.g. `TelmiOS_v1.10.3.zip`) | [TelmiOS Releases](https://github.com/DantSu/Telmi-story-teller/releases) |
 | **Python 3** *(optional)* | [python.org/downloads](https://www.python.org/downloads/) — check *"Add to PATH"* |
 
 Extract all three archives into any folder on your PC:
@@ -464,7 +507,7 @@ Extract all three archives into any folder on your PC:
 📁 MyFolder\
     📁 Miyoo-Bifrost\            ← this project (extracted from ZIP)
     📁 Onion-v4.3.1-1\           ← OnionOS archive contents
-    📁 TelmiOS_v1.10.1\          ← TelmiOS archive contents
+    📁 TelmiOS_v1.10.3\          ← TelmiOS archive contents
 ```
 
 > ✅ **Folder names don't need to be changed** — the installer auto-detects any folder starting with `Onion` or `Telmi`.
@@ -515,7 +558,7 @@ Windows refuses to format cards > 32 GB as FAT32 through its GUI. Use **[Rufus](
 4. Click **Start** — three folder selection windows open in order:
    - 📁 **SD card** — select your SD drive (e.g. `E:\`)
    - 📁 **OnionOS** — select the `Onion-v4.3.1-1` folder
-   - 📁 **TelmiOS** — select the `TelmiOS_v1.10.1` folder
+   - 📁 **TelmiOS** — select the `TelmiOS_v1.10.3` folder
 
 ![Windows Installer](preview/installer_windows.jpg)
 
@@ -661,13 +704,44 @@ During the listening window, pressing the Konami sequence reveals the menu norma
 
 ### Telmi-Sync Compatibility
 
-Since **v1.2.0**, the SD card is fully recognized by **Telmi-Sync** (the Windows story management app for TelmiOS):
+The SD card is fully recognized by **Telmi-Sync** (the Windows story management app for TelmiOS):
 
 - The `Stories/`, `Saves/` and `Music/` folders are placed **at the SD root**
 - Telmi-Sync can add/remove stories without reformatting the card
 - TelmiOS accesses these folders transparently via the bind mount system
 
+**How Telmi-Sync recognizes the card.** It reads `autorun.inf` at the root and
+looks for a label of the form `TelmiOS-vX.Y.Z`, then opens `Saves/.parameters`
+and parses it as JSON. The Bifrost installer writes both files: the label
+carries the TelmiOS version actually installed (read from
+`telmios/.tmp_update/telmiVersion/version.txt`) and the parameters are copied
+from the TelmiOS archive. If `Saves/.parameters` is missing or is not valid
+JSON, Telmi-Sync fails to detect the card.
+
+**Checked on every boot.** Both files live at the card root, where any PC tool
+can alter or delete them. Bifrost therefore revalidates them each time the
+console powers on, before drawing the menu:
+
+| Check | Automatic repair |
+|---|---|
+| `autorun.inf` missing or label out of date | Rewritten with the version read from `telmios/.tmp_update/telmiVersion/version.txt` |
+| `Saves/.parameters` missing or not JSON | Copied back from `telmios/Saves/.parameters` |
+| `Stories/`, `Saves/` or `Music/` deleted | Recreated |
+
+Nothing is written when everything already matches. Each check is traced in
+`SD:\.tmp_update\logs\dualboot.log`. In practice: after a TelmiOS upgrade the
+label follows on its own at the next boot, so Telmi-Sync no longer offers the
+destructive update.
+
 > To update stories: plug the SD into your PC, open Telmi-Sync — the card is automatically recognized.
+
+> ⚠️ **Do not use Telmi-Sync's "update TelmiOS" button on a Bifrost card.**
+> That feature extracts the update archive straight to the SD root, which
+> replaces `.tmp_update/runtime.sh` — the Bifrost boot menu itself. The console
+> would then boot straight into TelmiOS and no longer offer OnionOS.
+> To move to a newer TelmiOS release, re-run the Bifrost installer with the new
+> archive: your settings and stories are preserved. As long as the `autorun.inf`
+> label matches the latest published release, Telmi-Sync offers no update.
 
 ---
 

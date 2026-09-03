@@ -513,14 +513,84 @@ class InstallerForm : Form
                     }
                 }
             }
-            if (!Directory.Exists(Path.Combine(sd, "Saves")))
-                Directory.CreateDirectory(Path.Combine(sd, "Saves"));
+            // Telmi-Sync lit Saves\.parameters SANS verifier son existence : un
+            // fichier absent ou non-JSON fait echouer la detection de la carte.
+            // On installe donc les vrais defauts de TelmiOS, et un JSON minimal
+            // valide en dernier recours.
+            foreach (string d in new string[] { "Saves", "Stories", "Music" })
+                Directory.CreateDirectory(Path.Combine(sd, d));
+
             string paramF = Path.Combine(sd, "Saves", ".parameters");
-            if (!File.Exists(paramF))
+            bool paramOk = false;
+            if (File.Exists(paramF))
             {
-                File.WriteAllText(paramF, "{}");
-                Log("Saves\\.parameters cree");
-                AppendLog("  [Telmi-Sync] Saves\\.parameters cree", Color.Gray);
+                string txt = "";
+                try { txt = File.ReadAllText(paramF).Trim(); } catch { }
+                // Validation volontairement legere : un objet JSON commence par
+                // '{' et se termine par '}'. Suffisant pour ecarter un fichier
+                // vide ou tronque, sans dependre d'un parseur JSON.
+                paramOk = txt.StartsWith("{") && txt.EndsWith("}");
+                if (paramOk) Log("Saves\\.parameters existant et valide - conserve");
+                else Log("Saves\\.parameters existant mais illisible - remplacement");
+            }
+            if (!paramOk)
+            {
+                string srcParam = Path.Combine(telmi, "Saves", ".parameters");
+                if (File.Exists(srcParam))
+                {
+                    File.Copy(srcParam, paramF, true);
+                    Log("Saves\\.parameters copie depuis TelmiOS");
+                }
+                else
+                {
+                    File.WriteAllText(paramF, "{}");
+                    Log("Saves\\.parameters cree (JSON minimal)");
+                }
+                AppendLog("  [Telmi-Sync] Saves\\.parameters installe", Color.Gray);
+            }
+
+            // Telmi-Sync identifie la carte par le label "TelmiOS-vX.Y.Z" de
+            // autorun.inf. Un label perime lui ferait proposer une mise a jour
+            // de TelmiOS, laquelle ecraserait .tmp_update a la racine, donc le
+            // bootloader Bifrost lui-meme.
+            string telmiVer = null;
+            string verFile = Path.Combine(sdTelmi, ".tmp_update", "telmiVersion", "version.txt");
+            if (File.Exists(verFile))
+            {
+                try
+                {
+                    Match mv = Regex.Match(File.ReadAllText(verFile).Trim(),
+                                           @"^v?(\d+\.\d+\.\d+)$");
+                    if (mv.Success) telmiVer = mv.Groups[1].Value;
+                }
+                catch { }
+            }
+            if (telmiVer == null)
+            {
+                string srcAutorun = Path.Combine(telmi, "autorun.inf");
+                if (File.Exists(srcAutorun))
+                {
+                    try
+                    {
+                        Match mv = Regex.Match(File.ReadAllText(srcAutorun),
+                                               @"label\s*=\s*TelmiOS-v(\d+\.\d+\.\d+)");
+                        if (mv.Success) telmiVer = mv.Groups[1].Value;
+                    }
+                    catch { }
+                }
+            }
+            if (telmiVer != null)
+            {
+                File.WriteAllText(Path.Combine(sd, "autorun.inf"),
+                    "[autorun]\r\nicon  = .tmp_update/res/sdcard.ico\r\nlabel = TelmiOS-v"
+                    + telmiVer + "\r\n");
+                Log("autorun.inf : label = TelmiOS-v" + telmiVer);
+                AppendLog("  [Telmi-Sync] Carte annoncee comme TelmiOS-v" + telmiVer, Color.Gray);
+            }
+            else
+            {
+                Log("Version TelmiOS indeterminee - autorun.inf laisse tel quel");
+                AppendLog("  [WARN] Version TelmiOS indeterminee dans autorun.inf", Color.Yellow);
             }
 
             // ==== STEP 7: OnionOS ====
@@ -943,7 +1013,7 @@ class InstallerForm : Form
             d["close"]           = "Fermer";
             d["selectSD"]        = "Selectionnez votre CARTE SD (ex: E:\\)";
             d["selectOnion"]     = "Selectionnez le dossier ONIONOS (ex: Onion-v4.3.1-1)";
-            d["selectTelmi"]     = "Selectionnez le dossier TELMIOS (ex: TelmiOS_v1.10.1)";
+            d["selectTelmi"]     = "Selectionnez le dossier TELMIOS (ex: TelmiOS_v1.10.3)";
             d["cancelled"]       = "Annule.";
             d["fat32Detected"]   = "Carte SD detectee";
             d["fat32Current"]    = "format actuel";
@@ -1001,7 +1071,7 @@ class InstallerForm : Form
             d["close"]           = "Close";
             d["selectSD"]        = "Select your SD CARD folder (ex: E:\\)";
             d["selectOnion"]     = "Select the ONIONOS folder (ex: Onion-v4.3.1-1)";
-            d["selectTelmi"]     = "Select the TELMIOS folder (ex: TelmiOS_v1.10.1)";
+            d["selectTelmi"]     = "Select the TELMIOS folder (ex: TelmiOS_v1.10.3)";
             d["cancelled"]       = "Cancelled.";
             d["fat32Detected"]   = "SD card detected";
             d["fat32Current"]    = "current format";
@@ -1059,7 +1129,7 @@ class InstallerForm : Form
             d["close"]           = "Cerrar";
             d["selectSD"]        = "Selecciona la carpeta de tu TARJETA SD (ej: E:\\)";
             d["selectOnion"]     = "Selecciona la carpeta ONIONOS (ej: Onion-v4.3.1-1)";
-            d["selectTelmi"]     = "Selecciona la carpeta TELMIOS (ej: TelmiOS_v1.10.1)";
+            d["selectTelmi"]     = "Selecciona la carpeta TELMIOS (ej: TelmiOS_v1.10.3)";
             d["cancelled"]       = "Cancelado.";
             d["fat32Detected"]   = "Tarjeta SD detectada";
             d["fat32Current"]    = "formato actual";

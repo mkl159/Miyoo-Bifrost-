@@ -1,192 +1,203 @@
 ===========================================================
-  GUIDE D'INSTALLATION — DUAL BOOT MIYOO MINI PLUS
-  OnionOS v4.3.1 + TelmOS v1.9.1
+  GUIDE D'INSTALLATION - BIFROST DUAL BOOT
+  Miyoo Mini / Mini Plus / Mini Flip
+  OnionOS v4.3.1-1 (ou v4.4.0-beta) + TelmiOS v1.10.3
 ===========================================================
 
-Ce guide explique comment installer le dual boot sur ta
-carte SD pour le Miyoo Mini Plus.
-Au démarrage, un menu graphique te permettra de choisir
-entre OnionOS (jeux) et TelmOS (histoires).
+Bifrost affiche un menu au demarrage de la console pour
+choisir entre OnionOS (retrogaming) et TelmiOS (histoires).
+
+Ce guide decrit l'installation automatique, puis la
+procedure manuelle pour ceux qui la preferent.
 
 -----------------------------------------------------------
-PRÉREQUIS
+PREREQUIS
 -----------------------------------------------------------
-- Une carte SD (recommandé 32GB à 256GB)
-  → FAT32 pour ≤ 32GB
-  → exFAT pour > 32GB
-- Un PC Windows avec les dossiers :
-  · "Telmios/"  (dossier TelmOS v1.9.1)
-  · "onion/"    (dossier OnionOS v4.3.1)
-  · "DualBoot/" (le bootloader créé ici)
-- Python 3 installé (pour générer les images)
-  Téléchargement : https://www.python.org/downloads/
+- Une carte SD, formatee en FAT32.
+  ATTENTION : FAT32 est obligatoire, quelle que soit la
+  taille de la carte. Le firmware Miyoo ne demarre pas sur
+  une carte exFAT ou NTFS. Windows refuse de formater en
+  FAT32 au-dela de 32 Go : l'installateur Bifrost sait le
+  faire, sinon utilisez Rufus (https://rufus.ie) avec une
+  taille d'unite de 32 Ko.
 
------------------------------------------------------------
-ÉTAPE 1 — Installer Python et Pillow
------------------------------------------------------------
-1. Ouvre un terminal (touches Win + R, tape "cmd")
-2. Installe Pillow :
-     pip install Pillow
-3. Génère les images de boot :
-     cd "C:\Users\Parents\Desktop\Test miyoo"
-     python generate_bootmenu.py
-4. Tu obtiens 2 fichiers :
-     bootmenu_onion.png
-     bootmenu_telmios.png
+- Les deux archives d'OS, decompressees :
+  . OnionOS : https://github.com/OnionUI/Onion/releases
+  . TelmiOS : https://github.com/DantSu/Telmi-story-teller/releases
 
------------------------------------------------------------
-ÉTAPE 2 — Formater la carte SD
------------------------------------------------------------
-Sur Windows :
-1. Insère la carte SD
-2. Ouvre l'Explorateur de fichiers
-3. Clic droit sur la SD → "Formater"
-   · Si ≤ 32GB : FAT32, taille cluster 32 Ko
-   · Si > 32GB : exFAT, taille cluster 32 Ko
-4. Clique "Démarrer"
+- Python n'est PAS necessaire : les images du menu sont
+  deja incluses dans DualBoot/.tmp_update/res/.
 
-⚠ ATTENTION : Sauvegarde tes ROMs et sauvegardes avant !
+===========================================================
+  METHODE 1 - INSTALLATION AUTOMATIQUE (recommandee)
+===========================================================
 
------------------------------------------------------------
-ÉTAPE 3 — Copier le bootloader
------------------------------------------------------------
-Copie le dossier "DualBoot/.tmp_update/" vers la SD :
+Windows
+-------
+1. Placez dans un meme dossier :
+     INSTALLER_BIFROST.exe
+     DualBoot\
+     le dossier OnionOS decompresse   (ex: Onion-v4.3.1-1\)
+     le dossier TelmiOS decompresse   (ex: TelmiOS_v1.10.3\)
+2. Double-cliquez sur INSTALLER_BIFROST.exe.
+   Il demande les droits administrateur (necessaires pour
+   formater la carte).
+3. Choisissez la lettre de la carte SD, puis les deux
+   dossiers d'OS quand ils sont demandes.
+4. Un journal complet est ecrit sur le Bureau, dans
+   bifrost_install.log.
 
-  Source  : DualBoot\.tmp_update\
-  Destination : SD:\.tmp_update\
+macOS
+-----
+   Ouvrez le Terminal, puis :
+     ./install_macos.sh
 
-Copie aussi :
-  Source  : DualBoot\autorun.inf
-  Destination : SD:\autorun.inf
+===========================================================
+  METHODE 2 - INSTALLATION MANUELLE
+===========================================================
 
------------------------------------------------------------
-ÉTAPE 4 — Copier les binaires (bin/) du bootloader
------------------------------------------------------------
-Le bootloader a besoin des programmes (binaires) d'OnionOS.
+ETAPE 1 - Formater la carte en FAT32
+------------------------------------
+Sauvegardez d'abord vos ROMs, histoires et sauvegardes.
+Formatez ensuite en FAT32, taille d'unite 32 Ko.
 
-  Source  : onion\.tmp_update\bin\
-  Destination : SD:\.tmp_update\bin\
+ETAPE 2 - Copier le bootloader
+------------------------------
+  DualBoot\.tmp_update\   ->  SD:\.tmp_update\
+  DualBoot\autorun.inf     ->  SD:\autorun.inf
 
-(Copier TOUT le contenu du dossier bin/)
+ETAPE 3 - Copier les binaires d'OnionOS
+---------------------------------------
+  <OnionOS>\miyoo\app\.tmp_update\bin\  ->  SD:\.tmp_update\bin\
 
------------------------------------------------------------
-ÉTAPE 5 — Copier les librairies (lib/) du bootloader
------------------------------------------------------------
-Le bootloader a besoin des librairies de TelmOS
-(elles sont plus complètes : SDL1.2 + SDL2).
+ETAPE 4 - Copier les librairies de TelmiOS
+------------------------------------------
+Celles de TelmiOS sont plus completes (SDL 1.2 et SDL 2).
+Utiliser celles d'OnionOS provoque un redemarrage en boucle.
 
-  Source  : Telmios\.tmp_update\lib\
-  Destination : SD:\.tmp_update\lib\
+  <TelmiOS>\.tmp_update\lib\  ->  SD:\.tmp_update\lib\
 
-(Copier TOUT le contenu du dossier lib/)
+ETAPE 5 - Copier l'updater d'OnionOS
+------------------------------------
+  <OnionOS>\.tmp_update\updater  ->  SD:\.tmp_update\updater
 
------------------------------------------------------------
-ÉTAPE 6 — Copier les images de boot menu
------------------------------------------------------------
-  Source  : bootmenu_onion.png    (généré à l'étape 1)
-  Source  : bootmenu_telmios.png  (généré à l'étape 1)
-  Destination : SD:\.tmp_update\res\
+ETAPE 6 - Installer les deux OS dans leurs sous-dossiers
+--------------------------------------------------------
+  tout le contenu de <TelmiOS>  ->  SD:\telmios\
+  tout le contenu de <OnionOS>  ->  SD:\onion\
 
-Tu dois aussi copier l'icône :
-  Source  : onion\.tmp_update\res\sdcard.ico
-  Destination : SD:\.tmp_update\res\sdcard.ico
+ETAPE 7 - Placer les donnees TelmiOS a la racine
+------------------------------------------------
+Telmi-Sync lit les histoires a la racine de la carte, pas
+dans telmios\. Deplacez donc ces trois dossiers :
 
------------------------------------------------------------
-ÉTAPE 7 — Installer TelmOS dans son sous-dossier
------------------------------------------------------------
-Crée le dossier SD:\telmios\ et copie TOUT le contenu
-du dossier "Telmios/" dedans :
+  SD:\telmios\Stories\  ->  SD:\Stories\
+  SD:\telmios\Saves\    ->  SD:\Saves\
+  SD:\telmios\Music\    ->  SD:\Music\
 
-Structure finale dans la SD :
-  SD:\telmios\.tmp_update\     ← was Telmios\.tmp_update\
-  SD:\telmios\miyoo\           ← was Telmios\miyoo\
-  SD:\telmios\miyoo354\        ← was Telmios\miyoo354\
-  SD:\telmios\Music\           ← was Telmios\Music\
-  SD:\telmios\Saves\           ← was Telmios\Saves\
-  SD:\telmios\Stories\         ← was Telmios\Stories\
+Bifrost les remonte automatiquement pour TelmiOS au
+demarrage : rien d'autre n'est a faire.
 
------------------------------------------------------------
-ÉTAPE 8 — Installer OnionOS dans son sous-dossier
------------------------------------------------------------
-Crée le dossier SD:\onion\ et copie TOUT le contenu
-du dossier "onion/" dedans :
+ETAPE 8 - Declarer la version pour Telmi-Sync
+---------------------------------------------
+Telmi-Sync reconnait la carte grace au libelle de
+SD:\autorun.inf. Faites-le correspondre a la version de
+TelmiOS que vous venez d'installer, par exemple :
 
-Structure finale dans la SD :
-  SD:\onion\.tmp_update\       ← was onion\.tmp_update\
-  SD:\onion\miyoo\             ← was onion\miyoo\
-  SD:\onion\App\               ← was onion\App\
-  SD:\onion\BIOS\              ← was onion\BIOS\
-  SD:\onion\Emu\               ← was onion\Emu\
-  SD:\onion\Icons\             ← was onion\Icons\
-  SD:\onion\Media\             ← was onion\Media\
-  SD:\onion\RetroArch\         ← was onion\RetroArch\
-  SD:\onion\Roms\              ← was onion\Roms\
-  SD:\onion\Saves\             ← was onion\Saves\
-  SD:\onion\Screenshots\       ← was onion\Screenshots\
-  SD:\onion\Themes\            ← was onion\Themes\
+  [autorun]
+  icon  = .tmp_update/res/sdcard.ico
+  label = TelmiOS-v1.10.3
 
------------------------------------------------------------
-STRUCTURE FINALE DE LA CARTE SD
------------------------------------------------------------
+Verifiez aussi que SD:\Saves\.parameters existe et
+contient du JSON valide : Telmi-Sync le lit sans verifier
+sa presence, et echoue a detecter la carte s'il manque.
+En cas de doute, copiez celui de l'archive TelmiOS.
+
+===========================================================
+  STRUCTURE FINALE DE LA CARTE
+===========================================================
+
   SD:\
-  ├── .tmp_update\            ← BOOTLOADER
-  │   ├── runtime.sh          ← Script sélecteur
-  │   ├── bin\                ← Programmes (copié d'OnionOS)
-  │   ├── lib\                ← Librairies (copié de TelmOS)
-  │   └── res\
-  │       ├── bootmenu_onion.png
-  │       ├── bootmenu_telmios.png
-  │       └── sdcard.ico
-  ├── telmios\                ← TelmOS complet
-  ├── onion\                  ← OnionOS complet
-  └── autorun.inf
+  +-- .tmp_update\           <- BOOTLOADER BIFROST
+  |   +-- runtime.sh         <- menu de selection
+  |   +-- bin\               <- binaires (depuis OnionOS)
+  |   +-- lib\               <- librairies (depuis TelmiOS)
+  |   +-- updater            <- depuis OnionOS
+  |   +-- config\
+  |   |   +-- dualboot.cfg   <- reglages du menu
+  |   +-- res\
+  |       +-- bootmenu_*.raw <- images du menu (FR/EN/ES)
+  |       +-- sdcard.ico
+  +-- telmios\               <- TelmiOS complet
+  +-- onion\                 <- OnionOS complet
+  +-- Stories\               <- histoires (vues par Telmi-Sync)
+  +-- Saves\                 <- sauvegardes TelmiOS
+  +-- Music\                 <- musiques
+  +-- autorun.inf
 
------------------------------------------------------------
-ÉTAPE 9 — TESTER !
------------------------------------------------------------
-1. Éjecte proprement la carte SD du PC
-2. Insère la carte SD dans le Miyoo Mini Plus
-3. Allume la console
-4. Le menu de sélection doit apparaître !
+Les fichiers .raw sont des images brutes ecrites directement
+sur le framebuffer, en 640x480 pour le Mini et le Mini Plus,
+et en 752x560 (suffixe _flip) pour le Mini Flip. Bifrost
+detecte la resolution et choisit le bon jeu d'images.
 
-Utilisation du menu :
-  ◄ ►  D-pad gauche/droite = naviguer entre les OS
-  A    = Confirmer la sélection
-  B    = Relancer le dernier OS choisi (annuler)
+===========================================================
+  UTILISATION DU MENU
+===========================================================
 
-Le choix est mémorisé automatiquement pour le prochain
-démarrage (fichier .bootchoice à la racine de la SD).
+  Gauche / Droite   choisir l'OS
+  A                 confirmer et demarrer
+  X                 ouvrir la configuration
+  SELECT            annuler / revenir en arriere
 
------------------------------------------------------------
-DÉPANNAGE
------------------------------------------------------------
+Sans action pendant 60 secondes, le dernier OS choisi
+demarre automatiquement. Le choix est memorise dans le
+fichier .bootchoice a la racine de la carte.
 
-Problème : Écran noir au démarrage
-→ Vérifie que SD:\.tmp_update\runtime.sh est présent
-→ Vérifie que SD:\.tmp_update\bin\ contient les binaires
-→ Vérifie que SD:\.tmp_update\lib\ contient les libs
+Le menu de configuration (touche X) permet de regler la
+langue, les vibrations, un code de verrouillage par OS, le
+mode de demarrage furtif et le Code Konami. Ces reglages
+sont aussi modifiables a la main dans
+SD:\.tmp_update\config\dualboot.cfg.
 
-Problème : "OS introuvable" au démarrage
-→ Vérifie que les dossiers SD:\telmios\ et SD:\onion\
-   existent et contiennent les fichiers des OS
+===========================================================
+  DEPANNAGE
+===========================================================
 
-Problème : Le menu ne s'affiche pas (pas d'image)
-→ Les images PNG ne sont pas copiées dans res/
-→ Regénère les images avec generate_bootmenu.py
-→ Copie-les dans SD:\.tmp_update\res\
+Ecran noir au demarrage
+  Verifiez la presence de SD:\.tmp_update\runtime.sh,
+  du dossier bin\ et du dossier lib\.
+  Consultez SD:\.tmp_update\logs\dualboot.log : Bifrost y
+  ecrit chaque etape de son demarrage.
 
-Problème : La console redémarre en boucle
-→ Copier les libs de TelmOS (pas d'Onion) dans .tmp_update\lib\
+La console redemarre en boucle
+  Les librairies de SD:\.tmp_update\lib\ doivent venir de
+  TelmiOS, pas d'OnionOS.
 
------------------------------------------------------------
-NOTES IMPORTANTES
------------------------------------------------------------
-- Les ROMs se mettent dans SD:\onion\Roms\ pour OnionOS
-- Les ROMs se mettent dans SD:\telmios\Stories\ pour TelmOS
-  (TelmOS utilise des histoires, pas des ROMs classiques)
-- Les sauvegardes sont séparées par OS
-- Le Wi-Fi fonctionne normalement dans chaque OS
+Le menu s'affiche mais reste noir apres le choix
+  Verifiez que SD:\telmios\ et SD:\onion\ contiennent bien
+  les fichiers des OS.
 
------------------------------------------------------------
-Bonne utilisation du dual boot !
+OnionOS ne demarre pas au premier essai
+  Normal : l'installateur interne d'OnionOS se lance et
+  prend environ deux minutes.
+
+Telmi-Sync ne reconnait pas la carte
+  Le libelle de SD:\autorun.inf doit commencer par
+  TelmiOS-v suivi d'une version a trois nombres, et
+  SD:\Saves\.parameters doit contenir du JSON valide.
+
+Le menu Bifrost a disparu apres une mise a jour Telmi-Sync
+  Le bouton "mettre a jour TelmiOS" de Telmi-Sync ecrit a la
+  racine de la carte et remplace le bootloader. Relancez
+  l'installateur Bifrost pour le restaurer ; les histoires
+  et les reglages sont conserves.
+
+===========================================================
+  NOTES
+===========================================================
+- Les ROMs vont dans SD:\onion\Roms\ pour OnionOS.
+- Les histoires vont dans SD:\Stories\ (racine) pour TelmiOS.
+- Les sauvegardes des deux OS restent separees.
+- Le Wi-Fi fonctionne normalement dans chaque OS.
+
 ===========================================================

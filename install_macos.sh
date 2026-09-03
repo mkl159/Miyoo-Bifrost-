@@ -377,11 +377,50 @@ for datadir in Stories Saves Music; do
         fi
     fi
 done
-mkdir -p "$SD/Saves"
-if [[ ! -f "$SD/Saves/.parameters" ]]; then
-    echo '{}' > "$SD/Saves/.parameters"
-    log_only "Saves/.parameters cree"
-    echo "    [Telmi-Sync] Saves/.parameters cree"
+# Telmi-Sync lit Saves/.parameters SANS verifier son existence : un fichier
+# absent ou non-JSON fait echouer la detection de la carte. On installe donc
+# les vrais defauts de TelmiOS, et un JSON minimal valide en dernier recours.
+mkdir -p "$SD/Saves" "$SD/Stories" "$SD/Music"
+param_file="$SD/Saves/.parameters"
+param_ok=0
+if [[ -s "$param_file" ]]; then
+    if python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$param_file" 2>/dev/null; then
+        param_ok=1
+        log_only "Saves/.parameters existant et valide - conserve"
+    else
+        log_only "Saves/.parameters existant mais illisible - remplacement"
+    fi
+fi
+if [[ $param_ok -eq 0 ]]; then
+    if [[ -f "$SRC_TELMIOS/Saves/.parameters" ]]; then
+        cp "$SRC_TELMIOS/Saves/.parameters" "$param_file"
+        log_only "Saves/.parameters copie depuis TelmiOS"
+    else
+        printf '{}' > "$param_file"
+        log_only "Saves/.parameters cree (JSON minimal)"
+    fi
+    echo "    [Telmi-Sync] Saves/.parameters installe"
+fi
+
+# --- Telmi-Sync : autorun.inf doit annoncer la version reellement installee ---
+# Telmi-Sync identifie la carte par le label "TelmiOS-vX.Y.Z" de autorun.inf.
+# Un label perime lui ferait proposer une mise a jour de TelmiOS, laquelle
+# ecraserait .tmp_update a la racine, donc le bootloader Bifrost lui-meme.
+telmi_ver=""
+telmi_ver_file="$SD/telmios/.tmp_update/telmiVersion/version.txt"
+if [[ -f "$telmi_ver_file" ]]; then
+    telmi_ver=$(tr -d ' \t\r\n' < "$telmi_ver_file" | sed -n 's/^v\{0,1\}\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)$/\1/p')
+fi
+if [[ -z "$telmi_ver" && -f "$SRC_TELMIOS/autorun.inf" ]]; then
+    telmi_ver=$(sed -n 's/.*label[[:space:]]*=[[:space:]]*TelmiOS-v\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' "$SRC_TELMIOS/autorun.inf" | head -1)
+fi
+if [[ -n "$telmi_ver" ]]; then
+    printf '[autorun]\r\nicon  = .tmp_update/res/sdcard.ico\r\nlabel = TelmiOS-v%s\r\n' "$telmi_ver" > "$SD/autorun.inf"
+    log_only "autorun.inf : label = TelmiOS-v$telmi_ver"
+    echo "    [Telmi-Sync] Carte annoncee comme TelmiOS-v$telmi_ver"
+else
+    log_only "Version TelmiOS indeterminee - autorun.inf laisse tel quel"
+    echo "    [AVERT] Version TelmiOS indeterminee dans autorun.inf"
 fi
 
 # ==================================================================

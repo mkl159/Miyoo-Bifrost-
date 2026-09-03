@@ -45,7 +45,7 @@ C_CANCEL_ACC= (220,  80,  80)   # Rouge annuler
 LANGUAGES = {
     "FR": {
         "subtitle":           "DUAL BOOT SELECTOR",
-        "selected_badge":     "◀  SELECTIONNE  ▶",
+        "selected_badge":     "SELECTIONNE",
         "panel_onion_lines": [
             "Retrogaming & Emulation",
             "Emulateurs multi-systemes",
@@ -69,7 +69,7 @@ LANGUAGES = {
     },
     "EN": {
         "subtitle":           "DUAL BOOT SELECTOR",
-        "selected_badge":     "◀  SELECTED  ▶",
+        "selected_badge":     "SELECTED",
         "panel_onion_lines": [
             "Retrogaming & Emulation",
             "Multi-system Emulators",
@@ -93,7 +93,7 @@ LANGUAGES = {
     },
     "ES": {
         "subtitle":           "DUAL BOOT SELECTOR",
-        "selected_badge":     "◀  SELECCIONADO  ▶",
+        "selected_badge":     "SELECCIONADO",
         "panel_onion_lines": [
             "Retrogaming & Emulacion",
             "Emuladores multi-sistema",
@@ -283,29 +283,155 @@ def draw_rounded_rect(draw, x0, y0, x1, y1, radius, fill, outline=None, outline_
     draw.rounded_rectangle([x0, y0, x1, y1], radius=radius, fill=fill,
                             outline=outline, width=outline_width)
 
+# Agrandissement global du texte.
+# Les tailles passees a get_font() sont les tailles "de reference" historiques ;
+# elles sont multipliees par ce facteur au moment du rendu.
+FONT_SCALE = 1.18
+
+# Familles de polices, par plateforme, de la plus souhaitable a la moins.
+# Liberation Sans (Linux) est metriquement compatible avec Arial (Windows) :
+# les images generees sous Linux et sous Windows sont donc quasi identiques.
+_FONT_CANDIDATES = {
+    "regular": [
+        # Windows
+        "C:/Windows/Fonts/arial.ttf",
+        "C:/Windows/Fonts/calibri.ttf",
+        "C:/Windows/Fonts/segoeui.ttf",
+        # Linux
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/TTF/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+        # macOS
+        "/System/Library/Fonts/Supplemental/Arial.ttf",
+        "/Library/Fonts/Arial.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",
+    ],
+    "bold": [
+        # Windows
+        "C:/Windows/Fonts/arialbd.ttf",
+        "C:/Windows/Fonts/calibrib.ttf",
+        "C:/Windows/Fonts/segoeuib.ttf",
+        # Linux
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf",
+        "/usr/share/fonts/liberation/LiberationSans-Bold.ttf",
+        "/usr/share/fonts/TTF/LiberationSans-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+        # macOS
+        "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+        "/Library/Fonts/Arial Bold.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",
+    ],
+}
+
+# Chemin de police retenu, resolu une seule fois par style.
+_FONT_FILE = {}
+_FONT_CACHE = {}
+
+
+def _resolve_font_file(bold):
+    """Trouve un fichier de police vectorielle utilisable pour le style demande."""
+    style = "bold" if bold else "regular"
+    if style in _FONT_FILE:
+        return _FONT_FILE[style]
+
+    for path in _FONT_CANDIDATES[style]:
+        if not os.path.exists(path):
+            continue
+        try:
+            ImageFont.truetype(path, 20)
+        except Exception:
+            continue
+        _FONT_FILE[style] = path
+        return path
+
+    # Dernier recours : demander la police par defaut a fontconfig (Linux/macOS).
+    try:
+        import subprocess
+        query = "Arial:bold" if bold else "Arial"
+        out = subprocess.run(["fc-match", "-f", "%{file}", query],
+                             capture_output=True, text=True, timeout=5)
+        cand = out.stdout.strip()
+        if cand and os.path.exists(cand):
+            ImageFont.truetype(cand, 20)
+            _FONT_FILE[style] = cand
+            return cand
+    except Exception:
+        pass
+
+    _FONT_FILE[style] = None
+    return None
+
+
+def check_fonts():
+    """Verifie qu'une police vectorielle est disponible.
+
+    Sans police vectorielle, Pillow retombe sur une police bitmap de taille
+    fixe : toutes les tailles rendraient identiquement et les images seraient
+    illisibles sur la console. On prefere echouer franchement.
+    """
+    regular = _resolve_font_file(False)
+    bold = _resolve_font_file(True)
+    if regular is None:
+        print("ERREUR: aucune police vectorielle (.ttf) trouvee sur ce systeme.")
+        print("  Les images seraient generees avec une police bitmap de taille fixe.")
+        print("  Installez une police, par exemple :")
+        print("    Debian/Ubuntu : sudo apt install fonts-liberation")
+        print("    Fedora        : sudo dnf install liberation-sans-fonts")
+        print("    macOS/Windows : Arial est normalement deja present")
+        sys.exit(2)
+    print("OK Police reguliere : " + regular)
+    print("OK Police grasse    : " + (bold or regular))
+    print("OK Echelle du texte : x%.2f" % FONT_SCALE)
+
+
 def get_font(size, bold=False):
-    font_paths = []
-    if sys.platform == "win32":
-        win_fonts = os.path.join(os.environ.get("WINDIR", "C:/Windows"), "Fonts")
-        if bold:
-            font_paths = [
-                os.path.join(win_fonts, "arialbd.ttf"),
-                os.path.join(win_fonts, "calibrib.ttf"),
-                os.path.join(win_fonts, "segoeuib.ttf"),
-            ]
-        else:
-            font_paths = [
-                os.path.join(win_fonts, "arial.ttf"),
-                os.path.join(win_fonts, "calibri.ttf"),
-                os.path.join(win_fonts, "segoeui.ttf"),
-            ]
-    for path in font_paths:
-        if os.path.exists(path):
-            try:
-                return ImageFont.truetype(path, size)
-            except Exception:
-                continue
-    return ImageFont.load_default()
+    """Police a la taille demandee, multipliee par FONT_SCALE."""
+    scaled = max(7, int(round(size * FONT_SCALE)))
+    key = (scaled, bool(bold))
+    if key in _FONT_CACHE:
+        return _FONT_CACHE[key]
+
+    path = _resolve_font_file(bold)
+    if path is None:
+        path = _resolve_font_file(False)
+    if path is None:
+        font = ImageFont.load_default()
+    else:
+        try:
+            font = ImageFont.truetype(path, scaled)
+        except Exception:
+            font = ImageFont.load_default()
+    _FONT_CACHE[key] = font
+    return font
+
+
+def text_width(draw, text, font):
+    bbox = draw.textbbox((0, 0), text, font=font)
+    return bbox[2] - bbox[0]
+
+
+def fit_font(draw, text, max_w, size, bold=False, min_size=7):
+    """Plus grande police <= `size` dont `text` tient dans `max_w` pixels.
+
+    Garantit qu'agrandir le texte ne le fait jamais deborder de son cadre.
+    """
+    if max_w <= 0 or not text:
+        return get_font(size, bold)
+    current = size
+    while current > min_size:
+        font = get_font(current, bold)
+        if text_width(draw, text, font) <= max_w:
+            return font
+        current -= 1
+    return get_font(min_size, bold)
+
 
 def text_center(draw, text, y, font, color, width):
     bbox = draw.textbbox((0, 0), text, font=font)
@@ -313,6 +439,36 @@ def text_center(draw, text, y, font, color, width):
     x = (width - tw) // 2
     draw.text((x, y), text, font=font, fill=color)
     return tw
+
+
+def text_center_fit(draw, text, y, size, color, width, max_w=None, bold=False):
+    """Texte centre, retreci automatiquement pour tenir dans `max_w`."""
+    if max_w is None:
+        max_w = width - 24
+    font = fit_font(draw, text, max_w, size, bold)
+    return text_center(draw, text, y, font, color, width)
+
+
+def draw_title_bar_text(draw, w, bar_h, line1, line2, size1, size2, c1, c2):
+    """Ecrit les deux lignes d'entete, centrees verticalement dans la barre.
+
+    Les positions sont derivees des metriques reelles des polices : la barre
+    reste correcte quelle que soit la valeur de FONT_SCALE.
+    """
+    f1 = fit_font(draw, line1, w - 40, size1, bold=True)
+    f2 = fit_font(draw, line2, w - 32, size2, bold=False)
+
+    b1 = draw.textbbox((0, 0), line1, font=f1)
+    b2 = draw.textbbox((0, 0), line2, font=f2)
+    h1, h2 = b1[3] - b1[1], b2[3] - b2[1]
+    gap = max(4, int(bar_h * 0.06))
+
+    total = h1 + gap + h2
+    top = (bar_h - total) // 2
+
+    # textbbox inclut le decalage interne du glyphe : on le compense.
+    text_center(draw, line1, top - b1[1], f1, c1, w)
+    text_center(draw, line2, top + h1 + gap - b2[1], f2, c2, w)
 
 # ── Createur menu principal ────────────────────────────────────
 
@@ -340,8 +496,8 @@ def create_bootmenu(selected_os: str, lang: str = "FR", w: int = 640, h: int = 4
     font_hint  = get_font(12)
     font_info  = get_font(10)
 
-    text_center(draw, "MIYOO MINI+", 10, font_title, C_WHITE, w)
-    text_center(draw, ld["subtitle"], 44, font_sub, C_GRAY, w)
+    draw_title_bar_text(draw, w, TITLE_H, "MIYOO MINI+", ld["subtitle"],
+                        28, 13, C_WHITE, C_GRAY)
 
     # Zone centrale
     PANEL_TOP  = TITLE_H + 18
@@ -399,21 +555,39 @@ def create_bootmenu(selected_os: str, lang: str = "FR", w: int = 640, h: int = 4
             [x0 + 4, PANEL_TOP + 4, x1 - 4, PANEL_TOP + 10],
             radius=3, fill=(*accent, 200 if is_sel else 100))
 
-        # Badge "SELECTIONNE"
+        # Badge "SELECTIONNE" : les chevrons sont traces, pas ecrits, car les
+        # triangles Unicode manquent dans beaucoup de polices systeme.
         if is_sel:
             sel_y = PANEL_TOP + 14
             badge_text = ld["selected_badge"]
+            ARROW_W, ARROW_GAP = 7, 9
+            reserved = 2 * (ARROW_W + ARROW_GAP) + 24
+            font_badge = fit_font(draw, badge_text,
+                                  (x1 - x0) - reserved, 11, bold=True)
             bbox_b = draw.textbbox((0, 0), badge_text, font=font_badge)
-            bw_half = (bbox_b[2] - bbox_b[0]) // 2 + 12
-            draw_rounded_rect(draw, cx - bw_half, sel_y, cx + bw_half, sel_y + 20,
-                              6, (*accent, 40), (*accent, 200), 1)
             bw_txt = bbox_b[2] - bbox_b[0]
-            draw.text((cx - bw_txt // 2, sel_y + 4), badge_text,
+            bh_txt = bbox_b[3] - bbox_b[1]
+            badge_h = bh_txt + 10
+            bw_half = bw_txt // 2 + ARROW_W + ARROW_GAP + 10
+            draw_rounded_rect(draw, cx - bw_half, sel_y,
+                              cx + bw_half, sel_y + badge_h,
+                              6, (*accent, 40), (*accent, 200), 1)
+            draw.text((cx - bw_txt // 2, sel_y + 5 - bbox_b[1]), badge_text,
                       font=font_badge, fill=accent)
+
+            ay = sel_y + badge_h // 2
+            ah = max(4, bh_txt // 2)
+            # Bord interieur des fleches : ARROW_GAP pixels avant le texte.
+            inner_l = cx - bw_txt // 2 - ARROW_GAP
+            inner_r = cx + bw_txt // 2 + ARROW_GAP
+            draw.polygon([(inner_l - ARROW_W, ay), (inner_l, ay - ah),
+                          (inner_l, ay + ah)], fill=accent)
+            draw.polygon([(inner_r + ARROW_W, ay), (inner_r, ay - ah),
+                          (inner_r, ay + ah)], fill=accent)
 
         # Nom OS
         title_y  = PANEL_TOP + 40
-        font_os  = get_font(26, bold=True)
+        font_os  = fit_font(draw, panel["title"], (x1 - x0) - 20, 26, bold=True)
         bbox_t   = draw.textbbox((0, 0), panel["title"], font=font_os)
         tw       = bbox_t[2] - bbox_t[0]
         title_color = C_WHITE if is_sel else lerp_color(C_WHITE, C_DIM, 0.4)
@@ -424,18 +598,23 @@ def create_bootmenu(selected_os: str, lang: str = "FR", w: int = 640, h: int = 4
         draw.line([(x0 + 20, line_y), (x1 - 20, line_y)],
                   fill=(*accent, 80 if is_sel else 40))
 
-        # Lignes description (plus d'espace grâce à la suppression de la version)
-        desc_y = line_y + 12
-        desc_spacing = 28
+        # Lignes description : reparties dans l'espace reellement disponible
+        # entre le filet et l'indicateur du bas, plutot qu'a pas fixe.
+        desc_y = line_y + 14
+        lines_n = max(1, len(panel["lines"]))
+        avail_h = (PANEL_BOT - 46) - desc_y
+        desc_spacing = max(24, min(38, avail_h // lines_n))
         for i, line in enumerate(panel["lines"]):
             line_color = C_WHITE if is_sel else C_DIM
             alpha_mult = 1.0 if is_sel else 0.6
             dot_color  = accent if is_sel else lerp_color(accent, C_DIM, 0.6)
-            font_line  = get_font(13, bold=(i == 0))
-            dot_x = x0 + 28
+            dot_x = x0 + 24
+            text_x = dot_x + 12
+            font_line  = fit_font(draw, line, (x1 - 12) - text_x, 13,
+                                  bold=(i == 0))
             draw.ellipse([dot_x - 3, desc_y + 5, dot_x + 3, desc_y + 11],
                          fill=(*dot_color, int(200 * alpha_mult)))
-            draw.text((dot_x + 10, desc_y), line, font=font_line,
+            draw.text((text_x, desc_y), line, font=font_line,
                       fill=(*line_color, int(220 * alpha_mult)))
             desc_y += desc_spacing
 
@@ -444,7 +623,7 @@ def create_bootmenu(selected_os: str, lang: str = "FR", w: int = 640, h: int = 4
         draw.line([(x0 + 20, status_y - 5), (x1 - 20, status_y - 5)],
                   fill=(*accent, 40 if is_sel else 20))
         icon_text = ld["icon_sel"] if is_sel else ld["icon_nosel"]
-        font_icon = get_font(11)
+        font_icon = fit_font(draw, icon_text, (x1 - x0) - 16, 11)
         bbox_i    = draw.textbbox((0, 0), icon_text, font=font_icon)
         iw        = bbox_i[2] - bbox_i[0]
         draw.text((cx - iw // 2, status_y), icon_text, font=font_icon,
@@ -455,17 +634,27 @@ def create_bootmenu(selected_os: str, lang: str = "FR", w: int = 640, h: int = 4
     draw_gradient_rect(draw, 0, HELP_Y, w, h, (12, 15, 28), (8, 10, 20))
     draw.line([(0, HELP_Y), (w, HELP_Y)], fill=(*C_DIVIDER, 200))
 
-    font_help_key = get_font(13, bold=True)
-    font_help_txt = get_font(13)
-    spacing = 36
     helps = ld["help"]
-    widths = []
-    for key, desc in helps:
-        bk = draw.textbbox((0, 0), key, font=font_help_key)
-        bt = draw.textbbox((0, 0), desc, font=font_help_txt)
-        widths.append((bk[2] - bk[0], bt[2] - bt[0]))
-    total_w = sum(wk + 8 + wt for wk, wt in widths) + spacing * (len(helps) - 1)
-    hx = (w - total_w) // 2
+
+    # La barre d'aide est composee de plusieurs blocs : on reduit d'un cran la
+    # taille de police (et l'espacement) tant que l'ensemble deborde.
+    help_size = 13
+    while True:
+        font_help_key = get_font(help_size, bold=True)
+        font_help_txt = get_font(help_size)
+        spacing = max(14, int(36 * help_size / 13))
+        widths = []
+        for key, desc in helps:
+            bk = draw.textbbox((0, 0), key, font=font_help_key)
+            bt = draw.textbbox((0, 0), desc, font=font_help_txt)
+            widths.append((bk[2] - bk[0], bt[2] - bt[0]))
+        total_w = (sum(wk + 10 + 6 + wt for wk, wt in widths)
+                   + spacing * (len(helps) - 1))
+        if total_w <= w - 16 or help_size <= 8:
+            break
+        help_size -= 1
+
+    hx = max(6, (w - total_w) // 2)
     hy = HELP_Y + 16
 
     for (key, desc), (wk, wt) in zip(helps, widths):
@@ -477,7 +666,7 @@ def create_bootmenu(selected_os: str, lang: str = "FR", w: int = 640, h: int = 4
         draw.text((hx, hy), desc, font=font_help_txt, fill=C_GRAY)
         hx += wt + spacing
 
-    text_center(draw, ld["footer"], h - 16, font_info, C_DIM, w)
+    text_center_fit(draw, ld["footer"], h - 18, 10, C_DIM, w, w - 16)
 
     return img
 
@@ -502,10 +691,8 @@ def create_locked_screen(os_name: str, lang: str = "FR", w: int = 640, h: int = 
         draw.line([(0, TITLE_H - 2 + i), (w, TITLE_H - 2 + i)],
                   fill=(200, 80, 80, alpha))
 
-    font_title = get_font(28, bold=True)
-    font_sub   = get_font(13)
-    text_center(draw, "MIYOO MINI+", 10, font_title, C_WHITE, w)
-    text_center(draw, "DUAL BOOT SELECTOR", 44, font_sub, C_GRAY, w)
+    draw_title_bar_text(draw, w, TITLE_H, "MIYOO MINI+", "DUAL BOOT SELECTOR",
+                        28, 13, C_WHITE, C_GRAY)
 
     # Centre
     cx, cy = w // 2, h // 2 - 10
@@ -513,17 +700,19 @@ def create_locked_screen(os_name: str, lang: str = "FR", w: int = 640, h: int = 
     # --- Dessin cadenas ---
     body_x0, body_y0 = cx - 44, cy - 4
     body_x1, body_y1 = cx + 44, cy + 56
+
+    # Anse : demi-ellipse SUPERIEURE (PIL : 0 deg = 3 h, sens horaire, donc la
+    # moitie haute va de 180 a 360 deg). Tracee avant le corps pour que ses
+    # extremites disparaissent proprement derriere lui.
+    arc_rx, arc_ry = 27, 34
+    draw.arc([cx - arc_rx, body_y0 - arc_ry,
+              cx + arc_rx, body_y0 + arc_ry],
+             start=180, end=360,
+             fill=(*accent, 220), width=9)
+
     draw.rounded_rectangle([body_x0, body_y0, body_x1, body_y1],
                             radius=8, fill=(30, 35, 55),
                             outline=(*accent, 200), width=3)
-
-    # Anneau du cadenas
-    arc_r = 30
-    arc_cx, arc_cy = cx, cy - 4
-    draw.arc([arc_cx - arc_r, arc_cy - arc_r - 28,
-              arc_cx + arc_r, arc_cy + arc_r - 4],
-             start=0, end=180,
-             fill=(*accent, 220), width=9)
 
     # Trou de serrure
     draw.ellipse([cx - 10, cy + 12, cx + 10, cy + 32],
@@ -534,36 +723,35 @@ def create_locked_screen(os_name: str, lang: str = "FR", w: int = 640, h: int = 
                    fill=(*accent, 120))
 
     # Nom de l'OS
-    font_os = get_font(22, bold=True)
     os_color = lerp_color(C_WHITE, accent, 0.4)
-    text_center(draw, os_display, cy - 90, font_os, os_color, w)
+    os_y = cy - 100
+    font_os = fit_font(draw, os_display, w - 60, 22, bold=True)
+    os_bbox = draw.textbbox((0, 0), os_display, font=font_os)
+    text_center(draw, os_display, os_y - os_bbox[1], font_os, os_color, w)
 
-    # Filet decoratif
-    line_y = cy - 70
+    # Filet decoratif, place sous le texte et non au travers.
+    line_y = os_y + (os_bbox[3] - os_bbox[1]) + 9
     lc = (*lerp_color(accent, C_DIM, 0.5), 120)
     draw.line([(cx - 80, line_y), (cx + 80, line_y)], fill=lc)
 
     # Titre "ACCES PROTEGE"
-    font_lock_big = get_font(26, bold=True)
-    text_center(draw, ld["locked_title"], cy + 70, font_lock_big, C_WHITE, w)
+    text_center_fit(draw, ld["locked_title"], cy + 70, 26, C_WHITE, w,
+                    w - 40, bold=True)
 
     # Sous-titre
-    font_lock_sub = get_font(15)
-    text_center(draw, ld["locked_sub"], cy + 104, font_lock_sub, C_GRAY, w)
+    text_center_fit(draw, ld["locked_sub"], cy + 106, 15, C_GRAY, w, w - 40)
 
     # Hint
-    font_lock_hint = get_font(11)
-    text_center(draw, ld["locked_hint"], cy + 128, font_lock_hint,
-                (*C_DIM, 200), w)
+    text_center_fit(draw, ld["locked_hint"], cy + 132, 11, (*C_DIM, 200), w,
+                    w - 24)
 
     # Barre bas
     HELP_Y = h - 56
     draw_gradient_rect(draw, 0, HELP_Y, w, h, (12, 15, 28), (8, 10, 20))
     draw.line([(0, HELP_Y), (w, HELP_Y)], fill=(*C_DIVIDER, 200))
 
-    font_cancel = get_font(13, bold=True)
-    text_center(draw, ld["locked_cancel"], HELP_Y + 18,
-                font_cancel, (220, 100, 100), w)
+    text_center_fit(draw, ld["locked_cancel"], HELP_Y + 17, 13,
+                    (220, 100, 100), w, w - 24, bold=True)
 
     return img
 
@@ -581,10 +769,8 @@ def _cfg_base(lang, w, h):
     for i, alpha in enumerate([50, 110, 50, 25]):
         draw.line([(0, TITLE_H - 2 + i), (w, TITLE_H - 2 + i)],
                   fill=(*C_CFG_ACC, alpha))
-    font_t = get_font(26, bold=True)
-    font_s = get_font(12)
-    text_center(draw, "MIYOO MINI+", 8, font_t, C_WHITE, w)
-    text_center(draw, ct["title"], 42, font_s, (*C_CFG_ACC, 210), w)
+    draw_title_bar_text(draw, w, TITLE_H, "MIYOO MINI+", ct["title"],
+                        26, 12, C_WHITE, (*C_CFG_ACC, 210))
     return img, draw, TITLE_H, ct
 
 
@@ -596,8 +782,8 @@ def _cfg_bottom(draw, nav_text, w, h, accent=None):
     draw_gradient_rect(draw, 0, HELP_Y, w, h, (11, 14, 26), (7, 9, 18))
     draw.line([(0, HELP_Y), (w, HELP_Y)], fill=(*C_DIVIDER, 180))
     if nav_text:
-        font_nav = get_font(11)
-        text_center(draw, nav_text, HELP_Y + 14, font_nav, (*C_GRAY, 200), w)
+        text_center_fit(draw, nav_text, HELP_Y + 13, 11, (*C_GRAY, 200), w,
+                        w - 12)
 
 
 def _draw_settings_icon(draw, cx, cy, size, accent):
@@ -624,21 +810,22 @@ def create_config_access(lang="FR", w=640, h=480) -> Image.Image:
 
     _draw_settings_icon(draw, cx, icon_cy, 36, C_CFG_ACC)
 
-    font_main = get_font(20, bold=True)
-    font_sub  = get_font(14)
-    font_hint = get_font(11)
+    text_center_fit(draw, "Configuration", icon_cy + 52, 20, C_WHITE, w,
+                    w - 40, bold=True)
 
-    text_center(draw, "Configuration", icon_cy + 52, font_main, C_WHITE, w)
-
-    sub_y = icon_cy + 84
+    sub_y = icon_cy + 88
+    font_sub = fit_font(draw, ct["access_sub"], w - 80, 14)
     bbox = draw.textbbox((0, 0), ct["access_sub"], font=font_sub)
+    bh = bbox[3] - bbox[1]
     bw = bbox[2] - bbox[0] + 32
     bx0, bx1 = (w - bw) // 2, (w + bw) // 2
-    draw.rounded_rectangle([bx0, sub_y - 6, bx1, sub_y + 22],
+    draw.rounded_rectangle([bx0, sub_y - 7, bx1, sub_y + bh + 11],
                            radius=8, fill=(28, 38, 62), outline=(*C_CFG_ACC, 160), width=1)
-    text_center(draw, ct["access_sub"], sub_y + 2, font_sub, (*C_CFG_ACC, 230), w)
+    text_center(draw, ct["access_sub"], sub_y - bbox[1] + 2, font_sub,
+                (*C_CFG_ACC, 230), w)
 
-    text_center(draw, ct["access_hint"], sub_y + 42, font_hint, C_GRAY, w)
+    text_center_fit(draw, ct["access_hint"], sub_y + bh + 26, 11, C_GRAY, w,
+                    w - 12)
 
     _cfg_bottom(draw, "", w, h)
     return img
@@ -676,13 +863,23 @@ def create_config_main(item_idx: int, lang="FR", w=640, h=480) -> Image.Image:
             ax, ay = MARGIN + 13, (iy0 + iy1) // 2
             draw.polygon([(ax, ay - 5), (ax + 7, ay), (ax, ay + 5)], fill=acc)
 
-        font_n = get_font(14, bold=is_sel)
-        font_d = get_font(10)
+        text_x  = MARGIN + 26
+        avail_w = (w - MARGIN) - text_x - 10
+        font_n = fit_font(draw, name, avail_w, 14, bold=is_sel)
+        font_d = fit_font(draw, desc, avail_w, 10)
         nc = C_WHITE if is_sel else lerp_color(C_WHITE, C_DIM, 0.55)
         dc = (*acc, 170) if is_sel else (*C_DIM, 120)
 
-        draw.text((MARGIN + 26, iy0 + 5),  name, font=font_n, fill=nc)
-        draw.text((MARGIN + 26, iy0 + ITEM_H // 2 + 2), desc, font=font_d, fill=dc)
+        # Les deux lignes sont reparties dans la hauteur reelle de l'item.
+        nb = draw.textbbox((0, 0), name, font=font_n)
+        db = draw.textbbox((0, 0), desc, font=font_d)
+        nh, dh = nb[3] - nb[1], db[3] - db[1]
+        gap = max(2, (ITEM_H - 6 - nh - dh) // 3)
+        ny  = iy0 + gap
+        dy  = ny + nh + gap
+
+        draw.text((text_x, ny - nb[1]), name, font=font_n, fill=nc)
+        draw.text((text_x, dy - db[1]), desc, font=font_d, fill=dc)
 
     _cfg_bottom(draw, ct["menu_nav"], w, h)
     return img
@@ -701,8 +898,7 @@ def create_config_choice(screen_type: str, option_idx: int, lang="FR", w=640, h=
         options = ct["vib_options"]
         accent  = C_VIB_ACC
 
-    font_title = get_font(16, bold=True)
-    text_center(draw, title, TH + 10, font_title, (*accent, 220), w)
+    text_center_fit(draw, title, TH + 8, 16, (*accent, 220), w, w - 40, bold=True)
 
     GRID_TOP = TH + 38
     GRID_BOT = h - 50
@@ -741,18 +937,24 @@ def create_config_choice(screen_type: str, option_idx: int, lang="FR", w=640, h=
             draw.ellipse([cx_c - dr, dot_y, cx_c + dr, dot_y + 2 * dr],
                          outline=(*C_DIM, 140), width=2)
 
-        font_on = get_font(15, bold=is_sel)
-        font_od = get_font(10)
+        inner_w = CARD_W - 16
+        font_on = fit_font(draw, opt_name, inner_w, 15, bold=is_sel)
+        font_od = fit_font(draw, opt_desc, inner_w, 10)
         oc = C_WHITE if is_sel else lerp_color(C_WHITE, C_DIM, 0.55)
         dc = (*accent, 180) if is_sel else (*C_DIM, 110)
 
         bbox = draw.textbbox((0, 0), opt_name, font=font_on)
-        tw = bbox[2] - bbox[0]
-        draw.text((cx_c - tw // 2, y0 + CARD_H // 2 - 14), opt_name, font=font_on, fill=oc)
-
         bbox_d = draw.textbbox((0, 0), opt_desc, font=font_od)
+        nh, dh = bbox[3] - bbox[1], bbox_d[3] - bbox_d[1]
+        block_top = y0 + CARD_H // 2 - (nh + 8 + dh) // 2
+
+        tw = bbox[2] - bbox[0]
+        draw.text((cx_c - tw // 2, block_top - bbox[1]), opt_name,
+                  font=font_on, fill=oc)
+
         dw = bbox_d[2] - bbox_d[0]
-        draw.text((cx_c - dw // 2, y0 + CARD_H // 2 + 8), opt_desc, font=font_od, fill=dc)
+        draw.text((cx_c - dw // 2, block_top + nh + 8 - bbox_d[1]), opt_desc,
+                  font=font_od, fill=dc)
 
     _cfg_bottom(draw, ct["choice_nav"], w, h, accent)
     return img
@@ -775,12 +977,9 @@ def create_config_entry(entry_type: str, lang="FR", w=640, h=480) -> Image.Image
         title, sub, accent = ct["cfg_title"], ct["cfg_sub"], C_CFG_ACC
         slot_count = 8
 
-    font_t = get_font(16, bold=True)
-    font_s = get_font(14)
-    font_h = get_font(11)
-
-    text_center(draw, title, TH + 12, font_t, (*accent, 220), w)
-    text_center(draw, sub,   TH + 36, font_s, C_WHITE, w)
+    text_center_fit(draw, title, TH + 10, 16, (*accent, 220), w, w - 40,
+                    bold=True)
+    text_center_fit(draw, sub, TH + 36, 14, C_WHITE, w, w - 32)
 
     # Slots de saisie (largeur adaptee au nombre)
     SY      = TH + 72
@@ -802,15 +1001,29 @@ def create_config_entry(entry_type: str, lang="FR", w=640, h=480) -> Image.Image
         draw.line([(sx + line_pad, mid_y), (sx + SLOT_W - line_pad, mid_y)],
                  fill=(*C_DIM, 90), width=2)
 
-    IY = SY + SLOT_H + 20
-    draw.rounded_rectangle([36, IY - 8, w - 36, IY + 56],
-                           radius=8, fill=(18, 24, 42), outline=(*accent, 90), width=1)
-    hint1 = ct["entry_hint1"] + f"  (max {slot_count} boutons)" if lang == "FR" else \
-            ct["entry_hint1"] + (f"  (max {slot_count} botones)" if lang == "ES" else f"  (max {slot_count} buttons)")
-    text_center(draw, hint1, IY + 6,  font_h, C_GRAY, w)
-    text_center(draw, ct["entry_hint2"], IY + 28, get_font(12, bold=True), (*accent, 200), w)
+    # Encadre des consignes, dimensionne d'apres la hauteur reelle du texte.
+    if lang == "FR":
+        unit = "boutons"
+    elif lang == "ES":
+        unit = "botones"
+    else:
+        unit = "buttons"
+    hint1 = "%s  (max %d %s)" % (ct["entry_hint1"], slot_count, unit)
 
-    text_center(draw, ct["entry_btns"], IY + 72, font_h, C_DIM, w)
+    f_h1 = fit_font(draw, hint1, w - 96, 11)
+    f_h2 = fit_font(draw, ct["entry_hint2"], w - 96, 12, bold=True)
+    h1h = draw.textbbox((0, 0), hint1, font=f_h1)[3]
+    h2h = draw.textbbox((0, 0), ct["entry_hint2"], font=f_h2)[3]
+
+    IY = SY + SLOT_H + 20
+    box_h = h1h + h2h + 26
+    draw.rounded_rectangle([36, IY - 8, w - 36, IY + box_h],
+                           radius=8, fill=(18, 24, 42), outline=(*accent, 90), width=1)
+    text_center(draw, hint1, IY + 4, f_h1, C_GRAY, w)
+    text_center(draw, ct["entry_hint2"], IY + h1h + 12, f_h2, (*accent, 200), w)
+
+    # Liste des boutons valides : longue ligne, retrecie pour tenir en largeur.
+    text_center_fit(draw, ct["entry_btns"], IY + box_h + 16, 11, C_DIM, w, w - 16)
 
     _cfg_bottom(draw, "", w, h, accent)
     return img
@@ -824,8 +1037,7 @@ def create_config_bootmode(option_idx: int, lang="FR", w=640, h=480) -> Image.Im
     options = ct["bootmode_options"]
     accent  = C_PROT_ACC
 
-    font_title = get_font(16, bold=True)
-    text_center(draw, title, TH + 10, font_title, (*accent, 220), w)
+    text_center_fit(draw, title, TH + 8, 16, (*accent, 220), w, w - 40, bold=True)
 
     GRID_TOP = TH + 40
     GRID_BOT = h - 50
@@ -872,35 +1084,38 @@ def create_config_bootmode(option_idx: int, lang="FR", w=640, h=480) -> Image.Im
             draw.ellipse([cx_c - 5, icon_cy - 2, cx_c + 5, icon_cy + 8],
                          fill=(*accent, 200 if is_sel else 100))
 
-        font_on = get_font(13, bold=is_sel)
+        inner_w = CARD_W - 12
+        font_on = fit_font(draw, opt_name, inner_w, 13, bold=is_sel)
         font_od = get_font(9)
         oc = C_WHITE if is_sel else lerp_color(C_WHITE, C_DIM, 0.55)
         dc = (*accent, 180) if is_sel else (*C_DIM, 110)
 
         bbox = draw.textbbox((0, 0), opt_name, font=font_on)
         tw = bbox[2] - bbox[0]
-        # Truncate au besoin
-        text_y = y0 + CARD_H // 2 + 6
+        text_y = y0 + CARD_H // 2 + 2
         draw.text((cx_c - tw // 2, text_y), opt_name, font=font_on, fill=oc)
 
         # Description multi-lignes si trop long
-        desc_y = text_y + 22
+        desc_y = text_y + (bbox[3] - bbox[1]) + 12
         desc_words = opt_desc.split()
         line, lines = "", []
         for word in desc_words:
             tentative = (line + " " + word).strip()
             bb = draw.textbbox((0, 0), tentative, font=font_od)
-            if bb[2] - bb[0] > CARD_W - 16 and line:
+            if bb[2] - bb[0] > inner_w and line:
                 lines.append(line)
                 line = word
             else:
                 line = tentative
         if line:
             lines.append(line)
-        for li, ltext in enumerate(lines[:3]):
+        line_h = draw.textbbox((0, 0), "Ag", font=font_od)[3] + 3
+        max_lines = max(1, (y1 - 6 - desc_y) // line_h)
+        for li, ltext in enumerate(lines[:min(3, max_lines)]):
             bb = draw.textbbox((0, 0), ltext, font=font_od)
             lw = bb[2] - bb[0]
-            draw.text((cx_c - lw // 2, desc_y + li * 12), ltext, font=font_od, fill=dc)
+            draw.text((cx_c - lw // 2, desc_y + li * line_h), ltext,
+                      font=font_od, fill=dc)
 
     _cfg_bottom(draw, ct["choice_nav"], w, h, accent)
     return img
@@ -920,10 +1135,10 @@ def create_config_saved(lang="FR", w=640, h=480) -> Image.Image:
     for j in range(len(pts) - 1):
         draw.line([pts[j], pts[j + 1]], fill=(*acc, 255), width=5)
 
-    font_s = get_font(20, bold=True)
-    font_d = get_font(13)
-    text_center(draw, ct["saved_title"], icon_cy + r + 20, font_s, C_WHITE, w)
-    text_center(draw, ct["saved_sub"],   icon_cy + r + 52, font_d, C_GRAY, w)
+    text_center_fit(draw, ct["saved_title"], icon_cy + r + 20, 20, C_WHITE, w,
+                    w - 32, bold=True)
+    text_center_fit(draw, ct["saved_sub"], icon_cy + r + 54, 13, C_GRAY, w,
+                    w - 32)
 
     _cfg_bottom(draw, "", w, h, acc)
     return img
@@ -1045,6 +1260,9 @@ def main():
     print("  Generateur Boot Menu Miyoo Mini / Mini+ / Mini Flip")
     print("  Langues : FR / EN / ES")
     print("=" * 56)
+
+    # Sans police vectorielle, toutes les tailles rendraient identiquement.
+    check_fonts()
 
     # Chemin SD passe en argument (ex: depuis l'installateur PowerShell)
     if len(sys.argv) > 1:

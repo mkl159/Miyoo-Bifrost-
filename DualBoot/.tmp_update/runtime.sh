@@ -38,16 +38,28 @@ KEY_SELECT=314
 #  Chargement securise de la configuration
 #  (parse ligne par ligne, valide chaque valeur)
 # =============================================================
-LANG="FR"
-VIBRATION_POWER=25
-VIBRATION_SELECT=60
-VIBRATION_CONFIRM=100
-PASSWORD_PROTECT="none"
-PASSWORD_SEQUENCE=""
-CONFIG_SEQUENCE="UP UP DOWN DOWN"
-BOOT_MODE="menu"
-KONAMI_SEQUENCE="UP UP DOWN DOWN LEFT RIGHT LEFT RIGHT B"
-KONAMI_TIMEOUT=5
+# NB : la cle de configuration s'appelle LANG, mais on ne reutilise PAS la
+# variable d'environnement LANG (locale) : elle est exportee et serait heritee
+# par TelmiOS/OnionOS lances via exec, avec une valeur de locale invalide.
+# Valeurs par defaut regroupees : _safe_read_cfg n'ecrase que les cles
+# presentes ET valides, il faut donc pouvoir repartir d'une base connue
+# (notamment pour annuler proprement une modification dans le menu config).
+_set_defaults() {
+    UI_LANG="FR"
+    VIBRATION_POWER=25
+    VIBRATION_SELECT=60
+    VIBRATION_CONFIRM=100
+    PASSWORD_PROTECT="none"
+    PASSWORD_SEQUENCE=""
+    CONFIG_SEQUENCE="UP UP DOWN DOWN"
+    BOOT_MODE="menu"
+    KONAMI_SEQUENCE="UP UP DOWN DOWN LEFT RIGHT LEFT RIGHT B"
+    KONAMI_TIMEOUT=5
+}
+_set_defaults
+
+# Nombre de boutons d'une sequence donnee sous forme de noms.
+_seq_count() { set -- $1; echo $#; }
 
 _is_num() { case "$1" in ''|*[!0-9]*) return 1 ;; *) return 0 ;; esac; }
 
@@ -73,7 +85,7 @@ _safe_read_cfg() {
         _val=$(echo "$_val" | sed 's/ *#.*//')
         case "$_key" in
             LANG)
-                case "$_val" in FR|EN|ES) LANG="$_val" ;; esac ;;
+                case "$_val" in FR|EN|ES) UI_LANG="$_val" ;; esac ;;
             VIBRATION_POWER)
                 _is_num "$_val" && [ "$_val" -ge 0 ] && [ "$_val" -le 100 ] && VIBRATION_POWER="$_val" ;;
             VIBRATION_SELECT)
@@ -97,8 +109,93 @@ _safe_read_cfg() {
 }
 
 CONFIG="$sysdir/config/dualboot.cfg"
+_set_defaults
 _safe_read_cfg "$CONFIG"
-log "Config: LANG=$LANG VP=$VIBRATION_POWER VS=$VIBRATION_SELECT VC=$VIBRATION_CONFIRM PP=$PASSWORD_PROTECT"
+log "Config: LANG=$UI_LANG VP=$VIBRATION_POWER VS=$VIBRATION_SELECT VC=$VIBRATION_CONFIRM PP=$PASSWORD_PROTECT"
+
+# =============================================================
+#  VALIDATION TELMI-SYNC (a chaque demarrage)
+#
+#  Telmi-Sync (application PC de gestion des histoires) ne
+#  reconnait la carte que si DEUX conditions sont reunies :
+#    1. /autorun.inf porte un libelle "TelmiOS-vX.Y.Z"
+#    2. /Saves/.parameters existe et contient du JSON
+#  Il lit .parameters SANS verifier sa presence : un fichier
+#  absent ou corrompu fait echouer toute la detection.
+#
+#  Ces fichiers vivent a la racine de la carte, la ou n'importe
+#  quel outil PC peut les modifier. On les revalide donc a
+#  chaque demarrage de la console, et on les repare au besoin.
+#  Aucune ecriture n'a lieu si tout est deja conforme.
+# =============================================================
+SD_ROOT=/mnt/SDCARD
+AUTORUN_FILE="$SD_ROOT/autorun.inf"
+PARAMS_FILE="$SD_ROOT/Saves/.parameters"
+
+telmi_sync_validate() {
+    # ---- Version de TelmiOS reellement installee ----
+    _tsv=""
+    _tsv_file="$TELMIOS_DIR/.tmp_update/telmiVersion/version.txt"
+    if [ -f "$_tsv_file" ]; then
+        _tsv=$(tr -d ' \t\r\n' < "$_tsv_file" 2>/dev/null)
+        _tsv=${_tsv#v}
+    fi
+    # Telmi-Sync exige trois nombres separes par des points.
+    case "$_tsv" in
+        *[!0-9.]*)      _tsv="" ;;
+        *.*.*.*)        _tsv="" ;;
+        *.*.*)                  ;;
+        *)              _tsv="" ;;
+    esac
+
+    # ---- 1. Dossiers de donnees attendus a la racine ----
+    for _d in Stories Saves Music; do
+        if [ ! -d "$SD_ROOT/$_d" ]; then
+            mkdir -p "$SD_ROOT/$_d" 2>/dev/null && log "TelmiSync: $_d/ recree"
+        fi
+    done
+
+    # ---- 2. autorun.inf : libelle aligne sur la version installee ----
+    if [ -n "$_tsv" ]; then
+        _want="label = TelmiOS-v$_tsv"
+        _have=$(grep -i '^[[:space:]]*label[[:space:]]*=' "$AUTORUN_FILE" 2>/dev/null \
+                | head -1 | tr -d '\r')
+        _have=$(echo $_have)
+        if [ "$_have" = "$_want" ]; then
+            log "TelmiSync: autorun.inf OK (TelmiOS-v$_tsv)"
+        else
+            if printf '[autorun]\r\nicon  = .tmp_update/res/sdcard.ico\r\nlabel = TelmiOS-v%s\r\n' \
+                      "$_tsv" > "$AUTORUN_FILE" 2>/dev/null; then
+                log "TelmiSync: autorun.inf repare ('$_have' -> '$_want')"
+            else
+                log "TelmiSync: ecriture de autorun.inf impossible (carte protegee ?)"
+            fi
+        fi
+    else
+        log "TelmiSync: version TelmiOS indeterminee, autorun.inf inchange"
+    fi
+
+    # ---- 3. Saves/.parameters : present et JSON plausible ----
+    _pok=0
+    if [ -s "$PARAMS_FILE" ]; then
+        [ "$(head -c 1 "$PARAMS_FILE" 2>/dev/null)" = "{" ] && _pok=1
+    fi
+    if [ "$_pok" = "1" ]; then
+        log "TelmiSync: .parameters OK"
+    elif [ -f "$TELMIOS_DIR/Saves/.parameters" ]; then
+        cp -f "$TELMIOS_DIR/Saves/.parameters" "$PARAMS_FILE" 2>/dev/null \
+            && log "TelmiSync: .parameters restaure depuis telmios/" \
+            || log "TelmiSync: restauration de .parameters impossible"
+    else
+        printf '{}' > "$PARAMS_FILE" 2>/dev/null \
+            && log "TelmiSync: .parameters recree (JSON minimal)" \
+            || log "TelmiSync: creation de .parameters impossible"
+    fi
+
+    sync
+}
+
+telmi_sync_validate
 
 # ---- Detecter modele ----
 axp 0 > /dev/null 2>&1
@@ -244,6 +341,66 @@ _norm_key_pw() {
 #  Lecteurs d'input (start/stop factorise)
 # =============================================================
 KEY_FILE=/tmp/dualboot_key
+PW_KEY=/tmp/dualboot_pwkey
+
+# ---- File d'attente des touches -----------------------------------------
+# Les lecteurs d'input ajoutent une ligne par appui. L'ancienne lecture
+# (tail -1 puis troncature) ne gardait que le DERNIER appui du cycle de 100 ms
+# et jetait les autres : une sequence tapee vite perdait des boutons.
+# On draine desormais le fichier en entier vers une file memoire, consommee
+# appui par appui, dans l'ordre.
+_KEY_SRC="$KEY_FILE"   # fichier alimente par les lecteurs actifs
+_KQ=""                 # file d'attente (keycodes separes par des espaces)
+_KEY=""                # touche depilee par _pop_key / _wait_key
+
+# Vide la file : ni touche en memoire, ni touche en attente dans le fichier.
+_reset_keys() {
+    _KQ=""
+    _KEY=""
+    : > "$_KEY_SRC" 2>/dev/null
+}
+
+# Transfere le contenu du fichier vers la file memoire.
+# Le `mv` rend l'operation atomique : les lecteurs re-creent le fichier au
+# prochain append, donc aucun appui ne peut se perdre entre lecture et purge.
+_drain_keys() {
+    [ -s "$_KEY_SRC" ] || return 1
+    mv "$_KEY_SRC" "$_KEY_SRC.rd" 2>/dev/null || return 1
+    _KQ="$_KQ $(tr '\n' ' ' < "$_KEY_SRC.rd" 2>/dev/null)"
+    rm -f "$_KEY_SRC.rd"
+    set -- $_KQ
+    [ $# -gt 0 ]
+}
+
+# Depile la plus ancienne touche dans _KEY (FIFO). Retourne 1 si file vide.
+_pop_key() {
+    set -- $_KQ
+    if [ $# -eq 0 ]; then
+        _KEY=""
+        return 1
+    fi
+    _KEY="$1"
+    shift
+    _KQ="$*"
+    return 0
+}
+
+# Attend la prochaine touche, resultat dans _KEY.
+# $1 = nombre de cycles d'attente de 0.1 s (defaut 300 = 30 s d'inactivite).
+# Retourne 0 si une touche est disponible, 1 sur expiration.
+_wait_key() {
+    local _t=0 _max="${1:-300}"
+    while :; do
+        _pop_key && return 0
+        _drain_keys && continue
+        sleep 0.1
+        _t=$((_t+1))
+        if [ "$_t" -ge "$_max" ]; then
+            _KEY=""
+            return 1
+        fi
+    done
+}
 
 # Demarre les lecteurs sur tous les /dev/input/event* disponibles
 # $1 = fichier destination (defaut: KEY_FILE)
@@ -253,7 +410,11 @@ _start_readers() {
     local _dest="${1:-$KEY_FILE}"
     local _mode="${2:-raw}"
     _STARTED_PIDS=""
-    rm -f "$_dest"
+    # La file suit toujours le fichier reellement alimente.
+    _KEY_SRC="$_dest"
+    _KQ=""
+    _KEY=""
+    rm -f "$_dest" "$_dest.rd"
     for _ev in /dev/input/event0 /dev/input/event1 /dev/input/event2 /dev/input/event3; do
         if [ -c "$_ev" ]; then
             if [ "$_mode" = "pw" ]; then
@@ -321,49 +482,69 @@ _apply_vib_preset() {
 
 # Sauvegarde la configuration courante dans dualboot.cfg
 do_save_config() {
+    # Le fichier reste commente apres une sauvegarde depuis la console :
+    # il doit rester modifiable a la main depuis un PC.
     {
-        echo "# DualBoot Configuration - sauvegardee par le menu Bifrost"
-        echo "LANG=$LANG"
+        echo "# ====================================================="
+        echo "#  DualBoot Configuration - Miyoo Mini / Mini Plus / Flip"
+        echo "#  Fichier reecrit par le menu de configuration Bifrost."
+        echo "#  Modifiez uniquement la VALEUR a droite du signe ="
+        echo "# ====================================================="
+        echo ""
+        echo "LANG=$UI_LANG"
+        echo "# LANG : FR = francais / EN = anglais / ES = espagnol"
+        echo ""
         echo "VIBRATION_POWER=$VIBRATION_POWER"
+        echo "# VIBRATION_POWER : puissance moteur 0 a 100 (0 = desactive)"
+        echo ""
         echo "VIBRATION_SELECT=$VIBRATION_SELECT"
+        echo "# VIBRATION_SELECT : duree vibration gauche/droite en ms"
+        echo ""
         echo "VIBRATION_CONFIRM=$VIBRATION_CONFIRM"
+        echo "# VIBRATION_CONFIRM : duree vibration confirmation en ms"
+        echo ""
         echo "PASSWORD_PROTECT=$PASSWORD_PROTECT"
+        echo "# PASSWORD_PROTECT : none / onion / telmios / both"
+        echo ""
         echo "PASSWORD_SEQUENCE=\"$PASSWORD_SEQUENCE\""
+        echo "# PASSWORD_SEQUENCE : sequence de deverrouillage (entre guillemets)"
+        echo "# Boutons : UP DOWN LEFT RIGHT A B X Y L R START SELECT"
+        echo ""
         echo "CONFIG_SEQUENCE=\"$CONFIG_SEQUENCE\""
+        echo "# CONFIG_SEQUENCE : code secret d'acces au menu de configuration"
+        echo "# Appuyer X dans le menu de boot pour ouvrir la configuration"
+        echo ""
         echo "BOOT_MODE=$BOOT_MODE"
+        echo "# BOOT_MODE : menu (defaut) / stealth_telmios / stealth_onion"
+        echo "#   menu            = menu de selection classique au demarrage"
+        echo "#   stealth_telmios = boot direct sur TelmiOS, menu cache"
+        echo "#   stealth_onion   = boot direct sur OnionOS, menu cache"
+        echo ""
         echo "KONAMI_SEQUENCE=\"$KONAMI_SEQUENCE\""
+        echo "# KONAMI_SEQUENCE : sequence qui revele le menu en mode furtif"
+        echo "# Jusqu'a 10 boutons."
+        echo ""
         echo "KONAMI_TIMEOUT=$KONAMI_TIMEOUT"
+        echo "# KONAMI_TIMEOUT : duree d'ecoute du Code Konami au demarrage (1 a 30 s)"
     } > "$CONFIG"
     sync
     log "Config saved: PP=$PASSWORD_PROTECT VP=$VIBRATION_POWER PW='$PASSWORD_SEQUENCE' CS='$CONFIG_SEQUENCE' BM=$BOOT_MODE KS='$KONAMI_SEQUENCE' KT=${KONAMI_TIMEOUT}s"
 }
 
-# Rechargement securise de la config (pour annulation)
+# Rechargement securise de la config (pour annulation).
+# On repart des valeurs par defaut : sinon une cle absente du fichier
+# laisserait en place la valeur modifiee dans le menu, et "Annuler"
+# n'annulerait qu'une partie des changements.
 _reload_config() {
+    _set_defaults
     _safe_read_cfg "$CONFIG"
-}
-
-# Attend une touche dans KEY_FILE
-# $1 = timeout en unites de 0.1s (defaut 300 = 30s)
-_wait_cfg_key() {
-    local _t=0 _max="${1:-300}"
-    while [ $_t -lt $_max ]; do
-        if [ -s "$KEY_FILE" ]; then
-            tail -1 "$KEY_FILE" 2>/dev/null
-            > "$KEY_FILE"
-            return 0
-        fi
-        sleep 0.1
-        _t=$((_t+1))
-    done
-    return 1
 }
 
 # Affiche config_access, attend la sequence admin
 # Retourne 0 si correct, 1 sinon/timeout/annule
 check_config_access() {
     show_menu "config_access"
-    > "$KEY_FILE"
+    _reset_keys
 
     local _expected
     _expected=$(_seq_to_codes $CONFIG_SEQUENCE)
@@ -375,15 +556,13 @@ check_config_access() {
     local _pressed="" _pcount=0 _idle=0
 
     while [ $_pcount -lt $_elen ] && [ $_idle -lt 300 ]; do
-        local _raw
-        _raw=$(_wait_cfg_key 1)
-        if [ -z "$_raw" ]; then
+        if ! _wait_key 1; then
             _idle=$((_idle+1))
             continue
         fi
         _idle=0
         local _k
-        _k=$(_norm_key "$_raw")
+        _k=$(_norm_key "$_KEY")
         case "$_k" in
             $KEY_SELECT) log "Config access: annule (SELECT)"; vibrate 100; return 1 ;;
             $KEY_A) break ;;
@@ -413,12 +592,12 @@ cfg_set_protect() {
     esac
 
     show_menu "config_protect_${_idx}"
-    > "$KEY_FILE"
+    _reset_keys
 
     while true; do
-        local _raw _k
-        _raw=$(_wait_cfg_key 1) || continue
-        _k=$(_norm_key "$_raw")
+        local _k
+        _wait_key 1 || continue
+        _k=$(_norm_key "$_KEY")
         case "$_k" in
             $KEY_LEFT)
                 _idx=$(( (_idx-1+4) % 4 ))
@@ -458,12 +637,12 @@ cfg_set_vibration() {
     local _op="$VIBRATION_POWER" _os="$VIBRATION_SELECT" _oc="$VIBRATION_CONFIRM"
 
     show_menu "config_vib_${_idx}"
-    > "$KEY_FILE"
+    _reset_keys
 
     while true; do
-        local _raw _k
-        _raw=$(_wait_cfg_key 1) || continue
-        _k=$(_norm_key "$_raw")
+        local _k
+        _wait_key 1 || continue
+        _k=$(_norm_key "$_KEY")
         case "$_k" in
             $KEY_LEFT)
                 _idx=$(( (_idx-1+4) % 4 ))
@@ -496,12 +675,12 @@ cfg_set_bootmode() {
     esac
 
     show_menu "config_bootmode_${_idx}"
-    > "$KEY_FILE"
+    _reset_keys
 
     while true; do
-        local _raw _k
-        _raw=$(_wait_cfg_key 1) || continue
-        _k=$(_norm_key "$_raw")
+        local _k
+        _wait_key 1 || continue
+        _k=$(_norm_key "$_KEY")
         case "$_k" in
             $KEY_LEFT)
                 _idx=$(( (_idx-1+3) % 3 ))
@@ -531,16 +710,16 @@ cfg_set_bootmode() {
 # Retourne 0 si valide, 1 si annule/vide
 cfg_enter_sequence() {
     show_menu "$1"
-    > "$KEY_FILE"
+    _reset_keys
     NEW_CFG_SEQUENCE=""
 
     local _codes="" _count=0
 
     local _max_btn="${2:-8}"
     while [ $_count -lt $_max_btn ]; do
-        local _raw _k
-        _raw=$(_wait_cfg_key 1) || continue
-        _k=$(_norm_key "$_raw")
+        local _k
+        _wait_key 1 || continue
+        _k=$(_norm_key "$_KEY")
         case "$_k" in
             $KEY_SELECT)  return 1 ;;
             $KEY_A)       break    ;;
@@ -563,12 +742,12 @@ run_config_menu() {
     local _item=0 _max=8 _modified=0
 
     show_menu "config_main_${_item}"
-    > "$KEY_FILE"
+    _reset_keys
 
     while true; do
-        local _raw _k
-        _raw=$(_wait_cfg_key 1) || continue
-        _k=$(_norm_key "$_raw")
+        local _k
+        _wait_key 1 || continue
+        _k=$(_norm_key "$_KEY")
 
         case "$_k" in
             $KEY_UP)
@@ -627,14 +806,14 @@ run_config_menu() {
 
 # Point d'entree : verif code puis menu config
 enter_config_mode() {
-    > "$KEY_FILE"
+    _reset_keys
     if check_config_access; then
         run_config_menu
     else
         log "Config: acces refuse (mauvais code)"
     fi
     show_menu "$SELECTION"
-    > "$KEY_FILE"
+    _reset_keys
     log "Config mode termine"
 }
 
@@ -663,22 +842,22 @@ fi
 
 # ---- show_menu : ecriture directe sur /dev/fb0 (SANS SDL) ----
 # Les fichiers .raw sont des images BGRA 640x480x4 ou 752x560x4 selon le modele.
-# Nom : bootmenu_<name>_<LANG>[_flip].raw  (fallback progressif sans suffix)
+# Nom : bootmenu_<name>_<UI_LANG>[_flip].raw  (fallback progressif sans suffix)
 show_menu() {
     local name="$1"
-    local img_lang="$sysdir/res/bootmenu_${name}_${LANG}${RES_SUFFIX}.raw"
+    local img_lang="$sysdir/res/bootmenu_${name}_${UI_LANG}${RES_SUFFIX}.raw"
     local img_default="$sysdir/res/bootmenu_${name}${RES_SUFFIX}.raw"
-    local img_lang_base="$sysdir/res/bootmenu_${name}_${LANG}.raw"
+    local img_lang_base="$sysdir/res/bootmenu_${name}_${UI_LANG}.raw"
     local img_default_base="$sysdir/res/bootmenu_${name}.raw"
     if [ -f "$img_lang" ]; then
         dd if="$img_lang" of=/dev/fb0 bs=4096 2>/dev/null && sync
-        log "show_menu $name [$LANG]${RES_SUFFIX}: OK"
+        log "show_menu $name [$UI_LANG]${RES_SUFFIX}: OK"
     elif [ -f "$img_default" ]; then
         dd if="$img_default" of=/dev/fb0 bs=4096 2>/dev/null && sync
         log "show_menu $name [fallback]${RES_SUFFIX}: OK"
     elif [ -f "$img_lang_base" ]; then
         dd if="$img_lang_base" of=/dev/fb0 bs=4096 2>/dev/null && sync
-        log "show_menu $name [$LANG] (no-flip fallback): OK"
+        log "show_menu $name [$UI_LANG] (no-flip fallback): OK"
     elif [ -f "$img_default_base" ]; then
         dd if="$img_default_base" of=/dev/fb0 bs=4096 2>/dev/null && sync
         log "show_menu $name (bare fallback): OK"
@@ -740,15 +919,18 @@ if [ "$AUTOBOOT" = "0" ] && [ "$BOOT_MODE" != "menu" ]; then
 
     _buffer=""
     _bcount=0
-    _kt=0
-    _max_kt=$((KONAMI_TIMEOUT * 10))
     _konami_ok=0
 
-    while [ $_kt -lt $_max_kt ] && [ "$_klen" -gt 0 ]; do
-        if [ -s "$KEY_FILE" ]; then
-            _raw=$(tail -1 "$KEY_FILE" 2>/dev/null)
-            > "$KEY_FILE"
-            _kn=$(_norm_key "$_raw")
+    # Fenetre d'ecoute mesuree en temps reel : un utilisateur qui martele les
+    # boutons ne doit ni raccourcir ni prolonger le delai d'ecoute.
+    _kstart=$(date +%s 2>/dev/null || echo 0)
+    while [ "$_klen" -gt 0 ]; do
+        _know=$(date +%s 2>/dev/null || echo 0)
+        if [ $((_know - _kstart)) -ge "$KONAMI_TIMEOUT" ]; then
+            break
+        fi
+        if _wait_key 1; then
+            _kn=$(_norm_key "$_KEY")
             _buffer="$_buffer $_kn"
             _bcount=$((_bcount+1))
 
@@ -764,12 +946,10 @@ if [ "$AUTOBOOT" = "0" ] && [ "$BOOT_MODE" != "menu" ]; then
                 break
             fi
         fi
-        sleep 0.1
-        _kt=$((_kt+1))
     done
 
     _stop_readers "$STEALTH_PIDS"
-    rm -f "$KEY_FILE"
+    rm -f "$KEY_FILE" "$KEY_FILE.rd"
 
     if [ "$_konami_ok" = "1" ]; then
         # Code reussi : vibration de confirmation et bascule en mode menu
@@ -812,9 +992,9 @@ COUNTER=0
 CONFIRM_METHOD="timeout"
 
 while [ $COUNTER -lt $TIMEOUT ]; do
-    if [ -s "$KEY_FILE" ]; then
-        KEY=$(tail -1 "$KEY_FILE" 2>/dev/null)
-        > "$KEY_FILE"
+    _drain_keys
+    if _pop_key; then
+        KEY="$_KEY"
         log "Processing key=$KEY"
         PREV="$SELECTION"
 
@@ -830,6 +1010,14 @@ while [ $COUNTER -lt $TIMEOUT ]; do
                     telmios) [ "$SELECTION" = "telmios" ] && _need_pw=1 ;;
                 esac
 
+                # Garde-fou : protection activee sans sequence enregistree.
+                # Exiger un code inexistant rendrait la console inutilisable,
+                # on laisse donc passer plutot que d'enfermer l'utilisateur.
+                if [ "$_need_pw" = "1" ] && [ "$(_seq_count "$PASSWORD_SEQUENCE")" -eq 0 ]; then
+                    log "PW: protection active mais sequence vide -> acces libre"
+                    _need_pw=0
+                fi
+
                 if [ "$_need_pw" = "0" ]; then
                     CONFIRM_METHOD="confirm"
                     log "Confirm: $SELECTION"; break
@@ -839,7 +1027,7 @@ while [ $COUNTER -lt $TIMEOUT ]; do
 
                 # Suspendre lecteurs menu
                 _stop_readers "$READER_PIDS"
-                > "$KEY_FILE"
+                _reset_keys
 
                 # Afficher ecran verrouille
                 show_menu "locked_${SELECTION}"
@@ -850,7 +1038,6 @@ while [ $COUNTER -lt $TIMEOUT ]; do
                 _seq_len=$(echo "$_expected" | wc -w)
 
                 # Demarrer lecteurs password (fichier separe, normalisation pw)
-                PW_KEY=/tmp/dualboot_pwkey
                 _start_readers "$PW_KEY" "pw"
                 PW_PIDS="$_STARTED_PIDS"
 
@@ -860,9 +1047,8 @@ while [ $COUNTER -lt $TIMEOUT ]; do
                 _pw_cancel=0
                 _pw_t=0
                 while [ $_pw_t -lt 300 ] && [ $_pcount -lt $_seq_len ]; do
-                    if [ -s "$PW_KEY" ]; then
-                        _k=$(tail -1 "$PW_KEY" 2>/dev/null)
-                        > "$PW_KEY"
+                    if _wait_key 1; then
+                        _k="$_KEY"
                         # SELECT = annuler
                         if [ "$_k" = "$KEY_SELECT" ]; then
                             _pw_cancel=1; break
@@ -871,14 +1057,14 @@ while [ $COUNTER -lt $TIMEOUT ]; do
                         _pcount=$((_pcount+1))
                         vibrate 25
                         log "PW: $_pcount/$_seq_len key=$_k"
+                    else
+                        _pw_t=$((_pw_t+1))
                     fi
-                    sleep 0.1
-                    _pw_t=$((_pw_t+1))
                 done
 
                 # Arreter lecteurs password
                 _stop_readers "$PW_PIDS"
-                rm -f "$PW_KEY"
+                rm -f "$PW_KEY" "$PW_KEY.rd"
 
                 _pressed=$(echo $_pressed)
                 log "PW: recu='$_pressed' attendu='$_expected' cancel=$_pw_cancel"
@@ -910,6 +1096,8 @@ while [ $COUNTER -lt $TIMEOUT ]; do
             show_menu "$SELECTION"
             COUNTER=0
         fi
+        # Touches encore en file : les traiter sans attendre le prochain cycle.
+        continue
     fi
     sleep 0.1
     COUNTER=$((COUNTER+1))
@@ -919,7 +1107,7 @@ log "Loop done. COUNTER=$COUNTER method=$CONFIRM_METHOD selection=$SELECTION"
 
 # ---- Cleanup readers ----
 _stop_readers "$READER_PIDS"
-rm -f "$KEY_FILE"
+rm -f "$KEY_FILE" "$KEY_FILE.rd"
 
 fi  # fin bloc AUTOBOOT=0 (menu interactif)
 

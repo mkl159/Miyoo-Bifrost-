@@ -56,7 +56,7 @@ $MSG = @{
         title           = "  DUAL BOOT MIYOO MINI+ - Installation"
         selectSD        = "Selectionne le dossier de ta CARTE SD (ex: E:\)"
         selectOnion     = "Selectionne le dossier ONIONOS (ex: Onion-v4.3.1-1)"
-        selectTelmi     = "Selectionne le dossier TELMIOS (ex: TelmiOS_v1.10.1)"
+        selectTelmi     = "Selectionne le dossier TELMIOS (ex: TelmiOS_v1.10.3)"
         cancelled       = "Annule."
         pressEnter      = "Appuie sur Entree pour quitter"
         sdTarget        = "Cible SD"
@@ -105,7 +105,7 @@ $MSG = @{
         title           = "  DUAL BOOT MIYOO MINI+ - Installation"
         selectSD        = "Select your SD CARD folder (ex: E:\)"
         selectOnion     = "Select the ONIONOS folder (ex: Onion-v4.3.1-1)"
-        selectTelmi     = "Select the TELMIOS folder (ex: TelmiOS_v1.10.1)"
+        selectTelmi     = "Select the TELMIOS folder (ex: TelmiOS_v1.10.3)"
         cancelled       = "Cancelled."
         pressEnter      = "Press Enter to exit"
         sdTarget        = "SD target"
@@ -154,7 +154,7 @@ $MSG = @{
         title           = "  DUAL BOOT MIYOO MINI+ - Instalacion"
         selectSD        = "Selecciona la carpeta de tu TARJETA SD (ej: E:\)"
         selectOnion     = "Selecciona la carpeta ONIONOS (ej: Onion-v4.3.1-1)"
-        selectTelmi     = "Selecciona la carpeta TELMIOS (ej: TelmiOS_v1.10.1)"
+        selectTelmi     = "Selecciona la carpeta TELMIOS (ej: TelmiOS_v1.10.3)"
         cancelled       = "Cancelado."
         pressEnter      = "Pulsa Enter para salir"
         sdTarget        = "SD destino"
@@ -530,12 +530,60 @@ foreach ($datadir in @("Stories", "Saves", "Music")) {
         }
     }
 }
-# S'assurer que Saves/.parameters existe (Telmi-Sync en a besoin pour detecter la carte)
-if (-not (Test-Path "$SD\Saves")) { New-Item -ItemType Directory -Force -Path "$SD\Saves" | Out-Null }
-if (-not (Test-Path "$SD\Saves\.parameters")) {
-    Set-Content -Path "$SD\Saves\.parameters" -Value "{}" -Encoding ASCII -NoNewline
-    Log "Saves\.parameters cree (defaut)"
-    Write-Host "  [Telmi-Sync] Saves\.parameters cree" -ForegroundColor Gray
+# Telmi-Sync lit Saves\.parameters SANS verifier son existence : un fichier
+# absent ou non-JSON fait echouer la detection de la carte. On installe donc
+# les vrais defauts de TelmiOS, et un JSON minimal valide en dernier recours.
+foreach ($d in @("Saves", "Stories", "Music")) {
+    if (-not (Test-Path "$SD\$d")) { New-Item -ItemType Directory -Force -Path "$SD\$d" | Out-Null }
+}
+$paramFile = "$SD\Saves\.parameters"
+$paramOk = $false
+if (Test-Path $paramFile) {
+    try {
+        (Get-Content $paramFile -Raw) | ConvertFrom-Json | Out-Null
+        $paramOk = $true
+        Log "Saves\.parameters existant et valide - conserve"
+    } catch {
+        Log "Saves\.parameters existant mais illisible - remplacement" "WARN"
+    }
+}
+if (-not $paramOk) {
+    $srcParam = "$SRC_TELMIOS\Saves\.parameters"
+    if (Test-Path $srcParam) {
+        Copy-Item $srcParam $paramFile -Force
+        Log "Saves\.parameters copie depuis TelmiOS"
+    } else {
+        Set-Content -Path $paramFile -Value "{}" -Encoding ASCII -NoNewline
+        Log "Saves\.parameters cree (JSON minimal)"
+    }
+    Write-Host "  [Telmi-Sync] Saves\.parameters installe" -ForegroundColor Gray
+}
+
+# --- Telmi-Sync : autorun.inf doit annoncer la version reellement installee ---
+# Telmi-Sync identifie la carte par le label "TelmiOS-vX.Y.Z" de autorun.inf.
+# Un label perime lui ferait proposer une mise a jour de TelmiOS, laquelle
+# ecraserait .tmp_update a la racine, donc le bootloader Bifrost lui-meme.
+$telmiVer = $null
+$telmiVerFile = "$SD\telmios\.tmp_update\telmiVersion\version.txt"
+if (Test-Path $telmiVerFile) {
+    $rawVer = (Get-Content $telmiVerFile -Raw).Trim()
+    if ($rawVer -match '^v?(\d+\.\d+\.\d+)$') { $telmiVer = $Matches[1] }
+}
+if (-not $telmiVer) {
+    $srcAutorun = "$SRC_TELMIOS\autorun.inf"
+    if (Test-Path $srcAutorun) {
+        $m = [regex]::Match((Get-Content $srcAutorun -Raw), 'label\s*=\s*TelmiOS-v(\d+\.\d+\.\d+)')
+        if ($m.Success) { $telmiVer = $m.Groups[1].Value }
+    }
+}
+if ($telmiVer) {
+    $autorunTxt = "[autorun]`r`nicon  = .tmp_update/res/sdcard.ico`r`nlabel = TelmiOS-v$telmiVer`r`n"
+    Set-Content -Path "$SD\autorun.inf" -Value $autorunTxt -Encoding ASCII -NoNewline
+    Log "autorun.inf : label = TelmiOS-v$telmiVer"
+    Write-Host "  [Telmi-Sync] Carte annoncee comme TelmiOS-v$telmiVer" -ForegroundColor Gray
+} else {
+    Log "Version TelmiOS indeterminee - autorun.inf laisse tel quel" "WARN"
+    Write-Host "  [AVERT] Version TelmiOS indeterminee dans autorun.inf" -ForegroundColor Yellow
 }
 Log "Telmi-Sync prep terminee"
 
