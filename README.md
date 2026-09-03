@@ -280,6 +280,11 @@ Il est possible de configurer Bifrost **directement depuis la Miyoo**, sans acc�
 
 1. Ouvre `SD:\.tmp_update\config\dualboot.cfg` dans un éditeur texte (ou utilise le menu **X** sur la console)
 2. Change `PASSWORD_PROTECT=none` en :
+> ⚠️ **Ce code n'est pas une protection de sécurité.** Il est stocké en clair
+> dans `dualboot.cfg` : toute personne qui branche la carte SD sur un PC peut
+> le lire ou le modifier. Il sert à empêcher un enfant de changer d'OS depuis
+> la console, pas à protéger des données.
+
    - `PASSWORD_PROTECT=onion` → protège l'accès à OnionOS
    - `PASSWORD_PROTECT=telmios` → protège l'accès à TelmiOS
    - `PASSWORD_PROTECT=both` → protège les deux OS
@@ -397,6 +402,34 @@ Le firmware Miyoo exécute `/mnt/SDCARD/.tmp_update/runtime.sh` au démarrage. B
 | `BUILD_EXE.bat` | Recompile `INSTALLER_BIFROST.cs` → `.exe` (double-clic) |
 | `INSTALLER_SD.ps1` | Installateur PowerShell alternatif (ligne de commande) |
 | `install_macos.sh` | Installateur macOS *(non testé — retours bienvenus)* |
+| `tests/` | Suite de tests du bootloader (voir ci-dessous) |
+
+---
+
+## Tests
+
+Le bootloader s'exécute sur la console, sans écran ni clavier pour diagnostiquer
+une régression. Une suite de tests couvre donc sa logique sur PC :
+
+```sh
+sh tests/run_tests.sh
+```
+
+Les tests **n'utilisent pas une copie** du code : ils extraient les fonctions
+réelles de `runtime.sh` et les appellent telles quelles. Une modification du
+bootloader est donc couverte immédiatement, sans duplication à maintenir.
+
+| Groupe | Ce qui est vérifié |
+|---|---|
+| File d'attente des touches | Aucun appui perdu sur une salve rapide, purge, expiration |
+| Chargement de la configuration | Valeurs valides appliquées, valeurs hostiles rejetées, boutons réservés refusés, annulation |
+| Séquences et Code Konami | Conversions, variantes matérielles du bouton A, fenêtre glissante |
+| Validation Telmi-Sync | 8 scénarios de carte corrompue, reconnaissance vérifiée à chaque fois |
+| Images du menu | 168 fichiers RAW présents, à la bonne taille, non vides |
+
+Tout est rejoué sous **busybox ash**, le shell qui exécute réellement le
+bootloader sur la console, et sous **dash**. La suite vérifie aussi la syntaxe
+de `runtime.sh`, de l'installateur macOS et du générateur d'images.
 
 ---
 
@@ -671,6 +704,11 @@ You can configure Bifrost **directly from the Miyoo**, without a PC:
 
 1. Open `SD:\.tmp_update\config\dualboot.cfg` in a text editor (or use the SELECT menu on the console)
 2. Change `PASSWORD_PROTECT=none` to:
+> ⚠️ **This code is not a security measure.** It is stored in plain text in
+> `dualboot.cfg`: anyone who plugs the SD card into a PC can read or change it.
+> It exists to stop a child from switching OS on the console, not to protect
+> data.
+
    - `PASSWORD_PROTECT=onion` → locks access to OnionOS
    - `PASSWORD_PROTECT=telmios` → locks access to TelmiOS
    - `PASSWORD_PROTECT=both` → locks both OS
@@ -786,6 +824,34 @@ The Miyoo firmware executes `/mnt/SDCARD/.tmp_update/runtime.sh` at startup. Bif
 | `BUILD_EXE.bat` | Recompiles `INSTALLER_BIFROST.cs` → `.exe` (double-click) |
 | `INSTALLER_SD.ps1` | Alternative PowerShell installer (command line) |
 | `install_macos.sh` | macOS installer *(untested — feedback welcome)* |
+| `tests/` | Bootloader test suite (see below) |
+
+---
+
+## Tests
+
+The bootloader runs on the console, with no screen or keyboard to diagnose a
+regression. A test suite therefore covers its logic on a PC:
+
+```sh
+sh tests/run_tests.sh
+```
+
+The tests do **not** use a copy of the code: they extract the real functions
+from `runtime.sh` and call them as they are. Any change to the bootloader is
+covered immediately, with no duplicate to maintain.
+
+| Group | What is checked |
+|---|---|
+| Key queue | No keypress lost in a fast burst, flushing, timeout |
+| Configuration loading | Valid values applied, hostile values rejected, reserved buttons refused, cancel |
+| Sequences and Konami Code | Conversions, hardware variants of the A button, sliding window |
+| Telmi-Sync validation | 8 corrupted-card scenarios, detection verified every time |
+| Menu images | 168 RAW files present, correctly sized, not blank |
+
+Everything is replayed under **busybox ash**, the shell that actually runs the
+bootloader on the console, and under **dash**. The suite also syntax-checks
+`runtime.sh`, the macOS installer and the image generator.
 
 ---
 

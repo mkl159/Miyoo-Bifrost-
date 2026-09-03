@@ -165,7 +165,7 @@ CONFIG_TEXTS = {
         "konami_sub":     "Sequence pour reveler le menu en mode furtif",
         "entry_hint1":    "Appuyez sur les boutons de votre sequence",
         "entry_hint2":    "A = Valider   |   SELECT = Annuler",
-        "entry_btns":     "Boutons valides :  Haut  Bas  Gauche  Droite  A  B  X  Y  L  R  START  SELECT",
+        "entry_btns":     "Boutons valides :  Haut  Bas  Gauche  Droite  B  X  Y  L  R",
         "saved_title":    "CONFIGURATION SAUVEGARDEE !",
         "saved_sub":      "Les modifications ont ete enregistrees.",
     },
@@ -213,7 +213,7 @@ CONFIG_TEXTS = {
         "konami_sub":     "Secret sequence to reveal the menu in stealth mode",
         "entry_hint1":    "Press the buttons of your sequence",
         "entry_hint2":    "A = Validate   |   SELECT = Cancel",
-        "entry_btns":     "Valid buttons :  Up  Down  Left  Right  A  B  X  Y  L  R  START  SELECT",
+        "entry_btns":     "Valid buttons :  Up  Down  Left  Right  B  X  Y  L  R",
         "saved_title":    "CONFIGURATION SAVED !",
         "saved_sub":      "Your changes have been saved.",
     },
@@ -261,7 +261,7 @@ CONFIG_TEXTS = {
         "konami_sub":     "Secuencia para revelar el menu en modo furtivo",
         "entry_hint1":    "Pulsa los botones de tu secuencia",
         "entry_hint2":    "A = Validar   |   SELECT = Cancelar",
-        "entry_btns":     "Botones validos :  Arriba  Abajo  Izq  Der  A  B  X  Y  L  R  START  SELECT",
+        "entry_btns":     "Botones validos :  Arriba  Abajo  Izq  Der  B  X  Y  L  R",
         "saved_title":    "CONFIGURACION GUARDADA !",
         "saved_sub":      "Los cambios han sido guardados.",
     },
@@ -470,6 +470,81 @@ def draw_title_bar_text(draw, w, bar_h, line1, line2, size1, size2, c1, c2):
     text_center(draw, line1, top - b1[1], f1, c1, w)
     text_center(draw, line2, top + h1 + gap - b2[1], f2, c2, w)
 
+# ── Emblemes des OS ───────────────────────────────────────────
+# Dessines en vectoriel plutot qu'importes : aucune dependance a une
+# image externe, et ils suivent la couleur d'accent de chaque panneau.
+
+def _draw_gamepad_emblem(draw, cx, cy, r, accent, active=True):
+    """Manette de jeu stylisee : croix directionnelle et boutons.
+
+    L'embleme designe l'usage du systeme, pas son nom : une manette se
+    reconnait instantanement a cette taille, la ou un bulbe d'oignon
+    devient illisible en dessous de 80 pixels.
+    """
+    col = accent if active else lerp_color(accent, C_DIM, 0.6)
+    a_main = 235 if active else 130
+    a_soft = 165 if active else 90
+
+    bw = r                      # demi-largeur du corps
+    bh = int(r * 0.62)          # demi-hauteur du corps
+
+    # Corps de la manette, avec les poignees suggerees par les coins bas.
+    draw.rounded_rectangle([cx - bw, cy - bh, cx + bw, cy + bh],
+                           radius=int(bh * 0.85),
+                           outline=(*col, a_main), width=3)
+
+    # Croix directionnelle, a gauche.
+    dx = cx - int(bw * 0.52)
+    arm = int(r * 0.26)
+    th = max(2, int(r * 0.09))
+    draw.rectangle([dx - arm, cy - th, dx + arm, cy + th], fill=(*col, a_soft))
+    draw.rectangle([dx - th, cy - arm, dx + th, cy + arm], fill=(*col, a_soft))
+
+    # Deux boutons, a droite.
+    bx = cx + int(bw * 0.50)
+    br = max(2, int(r * 0.13))
+    off = int(r * 0.21)
+    draw.ellipse([bx - off - br, cy - br, bx - off + br, cy + br],
+                 fill=(*col, a_soft))
+    draw.ellipse([bx + off - br, cy - br, bx + off + br, cy + br],
+                 fill=(*col, a_soft))
+
+
+def _draw_book_emblem(draw, cx, cy, r, accent, active=True):
+    """Livre ouvert stylise : deux pages et une reliure centrale."""
+    col = accent if active else lerp_color(accent, C_DIM, 0.6)
+    a_main = 235 if active else 130
+    a_soft = 165 if active else 90
+
+    w = r
+    h = int(r * 0.72)
+    lift = int(r * 0.18)          # les pages remontent vers l'exterieur
+
+    # Contours traces au trait : draw.polygon n'accepte pas d'epaisseur,
+    # et un contour d'un pixel serait plus fin que celui de la manette.
+    def outline(points, width=3):
+        for i in range(len(points)):
+            draw.line([points[i], points[(i + 1) % len(points)]],
+                      fill=(*col, a_main), width=width)
+
+    outline([(cx - 2, cy - h + lift), (cx - w, cy - h),
+             (cx - w, cy + h - lift), (cx - 2, cy + h)])
+    outline([(cx + 2, cy - h + lift), (cx + w, cy - h),
+             (cx + w, cy + h - lift), (cx + 2, cy + h)])
+
+    # Reliure.
+    draw.line([(cx, cy - h + lift), (cx, cy + h)], fill=(*col, a_main), width=3)
+
+    # Lignes de texte suggerees sur chaque page.
+    for i in range(3):
+        yy = cy - int(h * 0.30) + i * int(h * 0.32)
+        inset = int(w * 0.24) + i * 2
+        draw.line([(cx - w + inset, yy), (cx - int(w * 0.26), yy)],
+                  fill=(*col, a_soft), width=2)
+        draw.line([(cx + int(w * 0.26), yy), (cx + w - inset, yy)],
+                  fill=(*col, a_soft), width=2)
+
+
 # ── Createur menu principal ────────────────────────────────────
 
 def create_bootmenu(selected_os: str, lang: str = "FR", w: int = 640, h: int = 480) -> Image.Image:
@@ -585,16 +660,26 @@ def create_bootmenu(selected_os: str, lang: str = "FR", w: int = 640, h: int = 4
             draw.polygon([(inner_r + ARROW_W, ay), (inner_r, ay - ah),
                           (inner_r, ay + ah)], fill=accent)
 
+        # Embleme de l'OS, dans l'espace laisse libre sous le badge.
+        # Il occupe une zone qui restait vide et rend les deux choix
+        # identifiables d'un coup d'oeil, sans lire le texte.
+        emblem_r  = max(18, min(34, (PANEL_BOT - PANEL_TOP) // 9))
+        emblem_cy = PANEL_TOP + 44 + emblem_r
+        if panel["id"] == "onion":
+            _draw_gamepad_emblem(draw, cx, emblem_cy, emblem_r, accent, is_sel)
+        else:
+            _draw_book_emblem(draw, cx, emblem_cy, emblem_r, accent, is_sel)
+
         # Nom OS
-        title_y  = PANEL_TOP + 40
+        title_y  = emblem_cy + emblem_r + 14
         font_os  = fit_font(draw, panel["title"], (x1 - x0) - 20, 26, bold=True)
         bbox_t   = draw.textbbox((0, 0), panel["title"], font=font_os)
         tw       = bbox_t[2] - bbox_t[0]
         title_color = C_WHITE if is_sel else lerp_color(C_WHITE, C_DIM, 0.4)
         draw.text((cx - tw // 2, title_y), panel["title"], font=font_os, fill=title_color)
 
-        # Separateur (directement sous le titre, sans version)
-        line_y = title_y + 34
+        # Separateur, place sous le titre d'apres sa hauteur reelle.
+        line_y = title_y + (bbox_t[3] - bbox_t[1]) + 12
         draw.line([(x0 + 20, line_y), (x1 - 20, line_y)],
                   fill=(*accent, 80 if is_sel else 40))
 
@@ -806,28 +891,34 @@ def create_config_access(lang="FR", w=640, h=480) -> Image.Image:
     """Ecran d'entree du code administrateur"""
     img, draw, TH, ct = _cfg_base(lang, w, h)
     cx = w // 2
-    icon_cy = TH + 80
 
-    _draw_settings_icon(draw, cx, icon_cy, 36, C_CFG_ACC)
+    # Bloc icone + titre + champ, centre entre les deux barres.
+    ICON_R = 36
+    f_main = fit_font(draw, "Configuration", w - 40, 20, bold=True)
+    f_sub  = fit_font(draw, ct["access_sub"], w - 80, 14)
+    main_h = draw.textbbox((0, 0), "Configuration", font=f_main)[3]
+    sub_bbox = draw.textbbox((0, 0), ct["access_sub"], font=f_sub)
+    sub_h = sub_bbox[3] - sub_bbox[1]
 
-    text_center_fit(draw, "Configuration", icon_cy + 52, 20, C_WHITE, w,
-                    w - 40, bold=True)
+    block_h = ICON_R * 2 + 26 + main_h + 26 + sub_h + 18
+    avail_top, avail_bot = TH + 8, h - 54
+    top = avail_top + max(0, ((avail_bot - avail_top) - block_h) // 2)
 
-    sub_y = icon_cy + 88
-    font_sub = fit_font(draw, ct["access_sub"], w - 80, 14)
-    bbox = draw.textbbox((0, 0), ct["access_sub"], font=font_sub)
-    bh = bbox[3] - bbox[1]
-    bw = bbox[2] - bbox[0] + 32
+    icon_cy = top + ICON_R
+    _draw_settings_icon(draw, cx, icon_cy, ICON_R, C_CFG_ACC)
+
+    text_center(draw, "Configuration", icon_cy + ICON_R + 26, f_main, C_WHITE, w)
+
+    sub_y = icon_cy + ICON_R + 26 + main_h + 26
+    bw = sub_bbox[2] - sub_bbox[0] + 32
     bx0, bx1 = (w - bw) // 2, (w + bw) // 2
-    draw.rounded_rectangle([bx0, sub_y - 7, bx1, sub_y + bh + 11],
+    draw.rounded_rectangle([bx0, sub_y - 7, bx1, sub_y + sub_h + 11],
                            radius=8, fill=(28, 38, 62), outline=(*C_CFG_ACC, 160), width=1)
-    text_center(draw, ct["access_sub"], sub_y - bbox[1] + 2, font_sub,
+    text_center(draw, ct["access_sub"], sub_y - sub_bbox[1] + 2, f_sub,
                 (*C_CFG_ACC, 230), w)
 
-    text_center_fit(draw, ct["access_hint"], sub_y + bh + 26, 11, C_GRAY, w,
-                    w - 12)
-
-    _cfg_bottom(draw, "", w, h)
+    # La consigne rejoint la barre du bas, restee vide jusqu'ici.
+    _cfg_bottom(draw, ct["access_hint"], w, h)
     return img
 
 
@@ -977,13 +1068,39 @@ def create_config_entry(entry_type: str, lang="FR", w=640, h=480) -> Image.Image
         title, sub, accent = ct["cfg_title"], ct["cfg_sub"], C_CFG_ACC
         slot_count = 8
 
-    text_center_fit(draw, title, TH + 10, 16, (*accent, 220), w, w - 40,
-                    bold=True)
-    text_center_fit(draw, sub, TH + 36, 14, C_WHITE, w, w - 32)
+    # Le contenu est centre entre la barre de titre et la barre du bas :
+    # il restait auparavant tasse dans la moitie haute de l'ecran.
+    if lang == "FR":
+        unit = "boutons"
+    elif lang == "ES":
+        unit = "botones"
+    else:
+        unit = "buttons"
+    hint1 = "%s  (max %d %s)" % (ct["entry_hint1"], slot_count, unit)
+
+    f_title = fit_font(draw, title, w - 40, 16, bold=True)
+    f_sub   = fit_font(draw, sub, w - 32, 14)
+    f_h1    = fit_font(draw, hint1, w - 96, 11)
+    f_btns  = fit_font(draw, ct["entry_btns"], w - 16, 11)
+
+    title_h = draw.textbbox((0, 0), title, font=f_title)[3]
+    sub_h   = draw.textbbox((0, 0), sub, font=f_sub)[3]
+    h1h     = draw.textbbox((0, 0), hint1, font=f_h1)[3]
+    btns_h  = draw.textbbox((0, 0), ct["entry_btns"], font=f_btns)[3]
+
+    SLOT_H  = 46
+    box_h   = h1h + 22
+    block_h = title_h + 14 + sub_h + 26 + SLOT_H + 24 + box_h + 18 + btns_h
+
+    avail_top = TH + 8
+    avail_bot = h - 54
+    top = avail_top + max(0, ((avail_bot - avail_top) - block_h) // 2)
+
+    text_center(draw, title, top, f_title, (*accent, 220), w)
+    text_center(draw, sub, top + title_h + 14, f_sub, C_WHITE, w)
 
     # Slots de saisie (largeur adaptee au nombre)
-    SY      = TH + 72
-    SLOT_H  = 46
+    SY      = top + title_h + 14 + sub_h + 26
     SLOT_G  = 8 if slot_count >= 10 else 10
     AVAIL   = w - 2 * 36
     SLOT_W  = (AVAIL - (slot_count - 1) * SLOT_G) // slot_count
@@ -1001,31 +1118,18 @@ def create_config_entry(entry_type: str, lang="FR", w=640, h=480) -> Image.Image
         draw.line([(sx + line_pad, mid_y), (sx + SLOT_W - line_pad, mid_y)],
                  fill=(*C_DIM, 90), width=2)
 
-    # Encadre des consignes, dimensionne d'apres la hauteur reelle du texte.
-    if lang == "FR":
-        unit = "boutons"
-    elif lang == "ES":
-        unit = "botones"
-    else:
-        unit = "buttons"
-    hint1 = "%s  (max %d %s)" % (ct["entry_hint1"], slot_count, unit)
-
-    f_h1 = fit_font(draw, hint1, w - 96, 11)
-    f_h2 = fit_font(draw, ct["entry_hint2"], w - 96, 12, bold=True)
-    h1h = draw.textbbox((0, 0), hint1, font=f_h1)[3]
-    h2h = draw.textbbox((0, 0), ct["entry_hint2"], font=f_h2)[3]
-
-    IY = SY + SLOT_H + 20
-    box_h = h1h + h2h + 26
+    # Encadre de la consigne principale.
+    IY = SY + SLOT_H + 24
     draw.rounded_rectangle([36, IY - 8, w - 36, IY + box_h],
                            radius=8, fill=(18, 24, 42), outline=(*accent, 90), width=1)
     text_center(draw, hint1, IY + 4, f_h1, C_GRAY, w)
-    text_center(draw, ct["entry_hint2"], IY + h1h + 12, f_h2, (*accent, 200), w)
 
     # Liste des boutons valides : longue ligne, retrecie pour tenir en largeur.
-    text_center_fit(draw, ct["entry_btns"], IY + box_h + 16, 11, C_DIM, w, w - 16)
+    text_center(draw, ct["entry_btns"], IY + box_h + 18, f_btns, C_DIM, w)
 
-    _cfg_bottom(draw, "", w, h, accent)
+    # La consigne de validation rejoint la barre du bas, comme sur les
+    # autres ecrans : cette barre restait vide.
+    _cfg_bottom(draw, ct["entry_hint2"], w, h, accent)
     return img
 
 
@@ -1042,13 +1146,17 @@ def create_config_bootmode(option_idx: int, lang="FR", w=640, h=480) -> Image.Im
     GRID_TOP = TH + 40
     GRID_BOT = h - 50
     PAD      = 12
-    CARD_H   = GRID_BOT - GRID_TOP - PAD
     CARD_W   = (w - 4 * PAD) // 3
+    # Hauteur plafonnee et rangee centree : occuper toute la hauteur
+    # disponible donnait des cartes tres elancees pour un contenu court,
+    # surtout en 752x560.
+    CARD_H   = min(GRID_BOT - GRID_TOP - PAD, int(CARD_W * 1.15))
+    ROW_TOP  = GRID_TOP + max(0, ((GRID_BOT - GRID_TOP) - CARD_H) // 2)
 
     positions = [
-        (PAD,                          GRID_TOP),
-        (PAD * 2 + CARD_W,             GRID_TOP),
-        (PAD * 3 + CARD_W * 2,         GRID_TOP),
+        (PAD,                          ROW_TOP),
+        (PAD * 2 + CARD_W,             ROW_TOP),
+        (PAD * 3 + CARD_W * 2,         ROW_TOP),
     ]
 
     for i, (opt_name, opt_desc) in enumerate(options):
@@ -1066,8 +1174,33 @@ def create_config_bootmode(option_idx: int, lang="FR", w=640, h=480) -> Image.Im
             draw.rounded_rectangle([x0, y0, x1, y1], radius=10,
                                    fill=(16, 20, 34), outline=(*C_DIM, 90), width=1)
 
+        # Le contenu (icone, nom, description) est centre verticalement :
+        # il restait auparavant colle en haut d'une carte tres allongee.
+        inner_w_pre = CARD_W - 12
+        font_on_pre = fit_font(draw, opt_name, inner_w_pre, 13, bold=is_sel)
+        font_od_pre = get_font(9)
+        name_h = draw.textbbox((0, 0), opt_name, font=font_on_pre)[3]
+        line_h_pre = draw.textbbox((0, 0), "Ag", font=font_od_pre)[3] + 3
+
+        # Nombre de lignes qu'occupera la description une fois repliee.
+        _line, _n_lines = "", 0
+        for _word in opt_desc.split():
+            _try = (_line + " " + _word).strip()
+            if draw.textbbox((0, 0), _try, font=font_od_pre)[2] > inner_w_pre and _line:
+                _n_lines += 1
+                _line = _word
+            else:
+                _line = _try
+        if _line:
+            _n_lines += 1
+        _n_lines = min(3, _n_lines)
+
+        ICON_H = 30
+        block_h = ICON_H + 18 + name_h + 12 + _n_lines * line_h_pre
+        block_top = y0 + max(10, (CARD_H - block_h) // 2)
+
         # Icone : carre pour menu, oeil pour stealth
-        icon_cy = y0 + 36
+        icon_cy = block_top + ICON_H // 2
         if i == 0:
             # Menu : grille 2x2
             for ix in range(2):
@@ -1084,15 +1217,15 @@ def create_config_bootmode(option_idx: int, lang="FR", w=640, h=480) -> Image.Im
             draw.ellipse([cx_c - 5, icon_cy - 2, cx_c + 5, icon_cy + 8],
                          fill=(*accent, 200 if is_sel else 100))
 
-        inner_w = CARD_W - 12
-        font_on = fit_font(draw, opt_name, inner_w, 13, bold=is_sel)
-        font_od = get_font(9)
+        inner_w = inner_w_pre
+        font_on = font_on_pre
+        font_od = font_od_pre
         oc = C_WHITE if is_sel else lerp_color(C_WHITE, C_DIM, 0.55)
         dc = (*accent, 180) if is_sel else (*C_DIM, 110)
 
         bbox = draw.textbbox((0, 0), opt_name, font=font_on)
         tw = bbox[2] - bbox[0]
-        text_y = y0 + CARD_H // 2 + 2
+        text_y = block_top + ICON_H + 18
         draw.text((cx_c - tw // 2, text_y), opt_name, font=font_on, fill=oc)
 
         # Description multi-lignes si trop long
@@ -1127,18 +1260,25 @@ def create_config_saved(lang="FR", w=640, h=480) -> Image.Image:
     cx = w // 2
     acc = C_SAVE_ACC
 
-    icon_cy = TH + 95
     r = 44
+    f_title = fit_font(draw, ct["saved_title"], w - 32, 20, bold=True)
+    f_sub   = fit_font(draw, ct["saved_sub"], w - 32, 13)
+    title_h = draw.textbbox((0, 0), ct["saved_title"], font=f_title)[3]
+    sub_h   = draw.textbbox((0, 0), ct["saved_sub"], font=f_sub)[3]
+
+    block_h = r * 2 + 24 + title_h + 16 + sub_h
+    avail_top, avail_bot = TH + 8, h - 54
+    icon_cy = avail_top + max(0, ((avail_bot - avail_top) - block_h) // 2) + r
+
     draw.ellipse([cx - r, icon_cy - r, cx + r, icon_cy + r],
                  fill=(16, 46, 26), outline=(*acc, 220), width=4)
     pts = [(cx - 18, icon_cy + 2), (cx - 4, icon_cy + 18), (cx + 20, icon_cy - 16)]
     for j in range(len(pts) - 1):
         draw.line([pts[j], pts[j + 1]], fill=(*acc, 255), width=5)
 
-    text_center_fit(draw, ct["saved_title"], icon_cy + r + 20, 20, C_WHITE, w,
-                    w - 32, bold=True)
-    text_center_fit(draw, ct["saved_sub"], icon_cy + r + 54, 13, C_GRAY, w,
-                    w - 32)
+    text_center(draw, ct["saved_title"], icon_cy + r + 24, f_title, C_WHITE, w)
+    text_center(draw, ct["saved_sub"], icon_cy + r + 24 + title_h + 16, f_sub,
+                C_GRAY, w)
 
     _cfg_bottom(draw, "", w, h, acc)
     return img
@@ -1155,6 +1295,17 @@ def save_raw(img: Image.Image, path: str):
     with open(path, "wb") as f:
         f.write(raw_bytes)
     return len(raw_bytes)
+
+
+def _save_preview(img, filename):
+    """Ecrit un apercu PNG dans preview/, a cote du script.
+
+    Les apercus etaient auparavant deposes a la racine du depot, ou ils
+    etaient ignores par git et ne servaient a rien.
+    """
+    preview_dir = os.path.join(OUTPUT_DIR, "preview")
+    os.makedirs(preview_dir, exist_ok=True)
+    img.save(os.path.join(preview_dir, filename), "PNG", optimize=True)
 
 
 # ── Generateur d'images pour une resolution donnee ────────────
@@ -1175,11 +1326,6 @@ def _generate_all_images(suffix, sd_res, w, h):
             print(f"  -> bootmenu_{os_name}_{lang}{suffix} ...")
             img = create_bootmenu(os_name, lang, w, h)
 
-            if not suffix:
-                png_path = os.path.join(OUTPUT_DIR, f"bootmenu_{os_name}_{lang}.png")
-                img.save(png_path, "PNG", optimize=True)
-                print(f"     PNG : {png_path}")
-
             raw_path = os.path.join(sd_res, f"bootmenu_{os_name}_{lang}{suffix}.raw")
             nb = save_raw(img, raw_path)
             print(f"     RAW : {raw_path} ({nb} octets)")
@@ -1192,9 +1338,11 @@ def _generate_all_images(suffix, sd_res, w, h):
             nb_lock  = save_raw(img_lock, raw_lock)
             print(f"     RAW : {raw_lock} ({nb_lock} octets)")
 
-            if not suffix:
-                png_lock = os.path.join(OUTPUT_DIR, f"bootmenu_locked_{os_name}_{lang}.png")
-                img_lock.save(png_lock, "PNG", optimize=True)
+            # Apercus : uniquement en francais et en resolution de base, ecrits
+            # directement dans preview/ (ceux du depot et ceux du README).
+            if lang == "FR" and not suffix:
+                _save_preview(img, f"bootmenu_{os_name}_FR.png")
+                _save_preview(img_lock, f"bootmenu_locked_{os_name}_FR.png")
 
     # ── Images du menu de configuration ──────────────────────────
     print(f"\n{'-'*30}")
@@ -1247,10 +1395,7 @@ def _generate_all_images(suffix, sd_res, w, h):
 
             # PNG de preview (FR uniquement, resolution de base uniquement)
             if lang == "FR" and not suffix:
-                preview_dir = os.path.join(OUTPUT_DIR, "preview")
-                os.makedirs(preview_dir, exist_ok=True)
-                png_path = os.path.join(preview_dir, f"bootmenu_{name}_FR.png")
-                img.save(png_path, "PNG", optimize=True)
+                _save_preview(img, f"bootmenu_{name}_FR.png")
 
 
 # ── Point d'entree ────────────────────────────────────────────

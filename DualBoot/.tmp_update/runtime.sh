@@ -4,6 +4,8 @@
 #  Affichage direct sur /dev/fb0 (bypass SDL = pas de segfault)
 # =============================================================
 
+BIFROST_VERSION="1.3.0-beta"
+
 sysdir=/mnt/SDCARD/.tmp_update
 miyoodir=/mnt/SDCARD/miyoo
 TELMIOS_DIR=/mnt/SDCARD/telmios
@@ -15,8 +17,25 @@ MODEL_MMP=354
 mkdir -p "$sysdir/logs"
 LOG="$sysdir/logs/dualboot.log"
 rm -f "$LOG"
-log() { echo "[$(date +%H:%M:%S)] $*" >> "$LOG"; sync; }
-log "=== DualBoot start ==="
+
+# Le journal est ecrit sans sync : forcer un vidage disque complet a chaque
+# ligne coutait cher au demarrage (68 traces, plus une par appui de touche)
+# et usait la carte SD pour rien. On synchronise explicitement, via
+# log_sync, aux seuls moments ou le journal doit survivre a une coupure :
+# avant de lancer un OS, et apres une ecriture de configuration.
+log() { echo "[$(date +%H:%M:%S)] $*" >> "$LOG"; }
+log_sync() { [ -n "$1" ] && log "$1"; sync; }
+
+log "=== DualBoot start (Bifrost $BIFROST_VERSION) ==="
+
+# Marqueur de version : permet d'identifier la version installee sur une
+# carte sans l'inspecter fichier par fichier, et a l'installateur de
+# reconnaitre une disposition ancienne. Reecrit seulement s'il a change.
+VERSION_FILE="$sysdir/bifrost_version"
+if [ "$(cat "$VERSION_FILE" 2>/dev/null)" != "$BIFROST_VERSION" ]; then
+    echo "$BIFROST_VERSION" > "$VERSION_FILE" 2>/dev/null \
+        && log "Marqueur de version ecrit : $BIFROST_VERSION"
+fi
 
 # =============================================================
 #  Constantes keycodes (Linux input event codes)
@@ -63,6 +82,16 @@ _seq_count() { set -- $1; echo $#; }
 
 _is_num() { case "$1" in ''|*[!0-9]*) return 1 ;; *) return 0 ;; esac; }
 
+# Vrai si la sequence $1 contient l'un des boutons listes dans $2.
+_seq_contains() {
+    for _b in $1; do
+        for _bad in $2; do
+            [ "$_b" = "$_bad" ] && return 0
+        done
+    done
+    return 1
+}
+
 _is_valid_btn_seq() {
     for _b in $1; do
         case "$_b" in
@@ -95,9 +124,23 @@ _safe_read_cfg() {
             PASSWORD_PROTECT)
                 case "$_val" in none|onion|telmios|both) PASSWORD_PROTECT="$_val" ;; esac ;;
             PASSWORD_SEQUENCE)
-                _is_valid_btn_seq "$_val" && PASSWORD_SEQUENCE="$_val" ;;
+                # SELECT annule la saisie : il ne peut pas faire partie du code.
+                if ! _is_valid_btn_seq "$_val"; then
+                    log "cfg: PASSWORD_SEQUENCE invalide, ignoree"
+                elif _seq_contains "$_val" "SELECT"; then
+                    log "cfg: PASSWORD_SEQUENCE contient SELECT (annulation), ignoree"
+                else
+                    PASSWORD_SEQUENCE="$_val"
+                fi ;;
             CONFIG_SEQUENCE)
-                _is_valid_btn_seq "$_val" && CONFIG_SEQUENCE="$_val" ;;
+                # A et START valident la saisie, SELECT l'annule.
+                if ! _is_valid_btn_seq "$_val"; then
+                    log "cfg: CONFIG_SEQUENCE invalide, valeur par defaut conservee"
+                elif _seq_contains "$_val" "A START SELECT"; then
+                    log "cfg: CONFIG_SEQUENCE contient un bouton reserve (A/START/SELECT), valeur par defaut conservee"
+                else
+                    CONFIG_SEQUENCE="$_val"
+                fi ;;
             BOOT_MODE)
                 case "$_val" in menu|stealth_telmios|stealth_onion) BOOT_MODE="$_val" ;; esac ;;
             KONAMI_SEQUENCE)
@@ -259,7 +302,18 @@ else
     is_charging=$(cat /sys/devices/gpiochip0/gpio/gpio59/value 2>/dev/null || echo 0)
 fi
 log "charging=$is_charging"
-[ "$is_charging" = "1" ] && cd "$sysdir" && chargingState
+# chargingState affiche l'animation de charge et bloque le demarrage
+# jusqu'a l'appui sur power. Il vient de TelmiOS : l'archive OnionOS ne le
+# fournit pas et l'installateur ne copie que le bin/ d'Onion. On ne l'appelle
+# donc que s'il est reellement present, au lieu d'echouer silencieusement.
+if [ "$is_charging" = "1" ]; then
+    if command -v chargingState > /dev/null 2>&1; then
+        log "charge: animation chargingState"
+        cd "$sysdir" && chargingState
+    else
+        log "charge: chargingState indisponible, passage direct au menu"
+    fi
+fi
 
 # ---- Vibration (puissance 1-100) ----
 vibrate() {
@@ -299,12 +353,24 @@ _code_to_btn() {
     esac
 }
 
-# Convertit une sequence de noms en codes (espace-separated)
-_seq_to_codes() {
-    local _r=""
+# Convertit une sequence de noms en codes, en appliquant la MEME
+# normalisation que celle subie par les touches lues. Sans cela, un bouton
+# normalise a la lecture (START -> A, ou L1/R1 -> LEFT/RIGHT en mode
+# password) ne pourrait jamais correspondre a ce qui est attendu, et la
+# sequence deviendrait impossible a saisir.
+# $1 = "pw" pour la normalisation password, sinon normalisation menu.
+_seq_to_codes_norm() {
+    _mode="$1"; shift
+    _r=""
     for _b in $@; do
-        local _c=$(_btn_to_code "$_b")
-        [ -n "$_c" ] && _r="$_r $_c"
+        _c=$(_btn_to_code "$_b")
+        [ -n "$_c" ] || continue
+        if [ "$_mode" = "pw" ]; then
+            _c=$(_norm_key_pw "$_c")
+        else
+            _c=$(_norm_key "$_c")
+        fi
+        _r="$_r $_c"
     done
     echo $_r
 }
@@ -454,10 +520,15 @@ _stop_readers() {
         kill "$_p" 2>/dev/null
     done
     sleep 0.2
-    # dd bloquant sur /dev/input/event* survit au kill du subshell parent
-    # et consomme les evenements clavier destines aux nouveaux readers
-    killall dd 2>/dev/null
-    killall od 2>/dev/null
+    # Le `dd` bloque sur /dev/input/event* survit au kill de son subshell
+    # parent et consommerait les evenements destines aux nouveaux lecteurs.
+    # On ne cible que les dd/od lisant un /dev/input/event*, jamais tous les
+    # dd du systeme : un killall global tuerait aussi une copie en cours.
+    # Le `od` en aval du pipeline se termine seul des que dd disparait.
+    for _cpid in $(ps 2>/dev/null | grep '/dev/input/event' | grep -v grep \
+                   | awk '{print $1}'); do
+        kill -9 "$_cpid" 2>/dev/null
+    done
     for _p in $_pids; do
         kill -9 "$_p" 2>/dev/null
     done
@@ -508,11 +579,13 @@ do_save_config() {
         echo ""
         echo "PASSWORD_SEQUENCE=\"$PASSWORD_SEQUENCE\""
         echo "# PASSWORD_SEQUENCE : sequence de deverrouillage (entre guillemets)"
-        echo "# Boutons : UP DOWN LEFT RIGHT A B X Y L R START SELECT"
+        echo "# Boutons : UP DOWN LEFT RIGHT A B X Y L R"
+        echo "# SELECT annule la saisie, il ne peut pas faire partie du code."
         echo ""
         echo "CONFIG_SEQUENCE=\"$CONFIG_SEQUENCE\""
         echo "# CONFIG_SEQUENCE : code secret d'acces au menu de configuration"
         echo "# Appuyer X dans le menu de boot pour ouvrir la configuration"
+        echo "# Boutons : UP DOWN LEFT RIGHT B X Y L1 R1 (ni A, ni START, ni SELECT)"
         echo ""
         echo "BOOT_MODE=$BOOT_MODE"
         echo "# BOOT_MODE : menu (defaut) / stealth_telmios / stealth_onion"
@@ -547,7 +620,7 @@ check_config_access() {
     _reset_keys
 
     local _expected
-    _expected=$(_seq_to_codes $CONFIG_SEQUENCE)
+    _expected=$(_seq_to_codes_norm menu $CONFIG_SEQUENCE)
     local _elen
     _elen=$(echo $_expected | wc -w)
 
@@ -891,7 +964,7 @@ fi
 if [ "$AUTOBOOT" = "0" ] && [ "$BOOT_MODE" != "menu" ]; then
     # Pre-validation de la sequence konami : ininitialise -> bascule en mode menu
     # pour eviter un verrouillage (ex: si l'utilisateur a vide accidentellement la sequence)
-    _konami_check=$(_seq_to_codes $KONAMI_SEQUENCE)
+    _konami_check=$(_seq_to_codes_norm menu $KONAMI_SEQUENCE)
     _konami_check=$(echo $_konami_check)
     _klen_check=$(echo "$_konami_check" | wc -w)
     if [ "$_klen_check" -lt 2 ]; then
@@ -986,12 +1059,19 @@ rm -f "$KEY_FILE"
 _start_readers "$KEY_FILE" "raw"
 READER_PIDS="$_STARTED_PIDS"
 
-# ---- Boucle menu (60s timeout) ----
-TIMEOUT=600
-COUNTER=0
+# ---- Boucle menu ----
+# Le delai est mesure en temps reel et non en tours de boucle : le travail
+# effectue a chaque tour (affichage, vibration, journal) faisait deriver
+# l'ancien comptage bien au-dela des 60 secondes annoncees.
+MENU_TIMEOUT=60
+MENU_START=$(date +%s 2>/dev/null || echo 0)
 CONFIRM_METHOD="timeout"
 
-while [ $COUNTER -lt $TIMEOUT ]; do
+while :; do
+    _menu_now=$(date +%s 2>/dev/null || echo 0)
+    if [ $((_menu_now - MENU_START)) -ge "$MENU_TIMEOUT" ]; then
+        break
+    fi
     _drain_keys
     if _pop_key; then
         KEY="$_KEY"
@@ -1033,7 +1113,7 @@ while [ $COUNTER -lt $TIMEOUT ]; do
                 show_menu "locked_${SELECTION}"
 
                 # Construire sequence attendue
-                _expected=$(_seq_to_codes $PASSWORD_SEQUENCE)
+                _expected=$(_seq_to_codes_norm pw $PASSWORD_SEQUENCE)
                 _expected=$(echo $_expected)
                 _seq_len=$(echo "$_expected" | wc -w)
 
@@ -1086,24 +1166,23 @@ while [ $COUNTER -lt $TIMEOUT ]; do
                 ;;
             $KEY_X)
                 log "X: mode config"
-                enter_config_mode
-                COUNTER=0 ;;
+                enter_config_mode ;;
         esac
 
         if [ "$SELECTION" != "$PREV" ]; then
             log "Switch $PREV -> $SELECTION"
             vibrate "$VIBRATION_SELECT"
             show_menu "$SELECTION"
-            COUNTER=0
         fi
+        # Toute action relance le compte a rebours.
+        MENU_START=$(date +%s 2>/dev/null || echo 0)
         # Touches encore en file : les traiter sans attendre le prochain cycle.
         continue
     fi
     sleep 0.1
-    COUNTER=$((COUNTER+1))
 done
 
-log "Loop done. COUNTER=$COUNTER method=$CONFIRM_METHOD selection=$SELECTION"
+log "Loop done. method=$CONFIRM_METHOD selection=$SELECTION"
 
 # ---- Cleanup readers ----
 _stop_readers "$READER_PIDS"
@@ -1181,7 +1260,7 @@ else
     unset SDL_VIDEODRIVER
     unset SDL_AUDIODRIVER
     unset EGL_VIDEODRIVER
-    log "Exec $SELECTION: $TARGET"
+    log_sync "Exec $SELECTION: $TARGET"
     exec "$TARGET" > "$OS_DIR/.tmp_update/logs/os_debug.log" 2>&1
     # Si exec echoue (fichier non executable, etc.), reboot de secours
     log "ERREUR: exec echoue! Reboot dans 5s..."
