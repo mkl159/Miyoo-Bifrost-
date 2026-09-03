@@ -45,10 +45,26 @@ eq "images attendues"          "168" "$count"
 eq "images manquantes"         "0"   "$missing"
 eq "images de taille incorrecte" "0" "$badsize"
 
+echo "  -- ecrans d'erreur --"
+# Sans eux, un systeme introuvable donne un ecran noir puis un redemarrage.
+err_missing=0
+for lang in FR EN ES; do
+    for variant in "" "_flip"; do
+        for os_name in onion telmios; do
+            f="$RES/bootmenu_error_missing_${os_name}_${lang}${variant}.raw"
+            [ -f "$f" ] || { err_missing=$((err_missing + 1)); echo "    manquante : $(basename "$f")"; }
+        done
+        f="$RES/bootmenu_error_mount_${lang}${variant}.raw"
+        [ -f "$f" ] || { err_missing=$((err_missing + 1)); echo "    manquante : $(basename "$f")"; }
+    done
+done
+eq "ecrans d'erreur manquants" "0" "$err_missing"
+
 echo "  -- aucun fichier RAW orphelin --"
 # Une image presente mais jamais affichee est du poids mort sur la carte.
+#   168 ecrans de menu + 18 ecrans d'erreur + 24 bandeaux de batterie
 total=$(find "$RES" -name '*.raw' | wc -l | tr -d ' ')
-eq "nombre total de fichiers RAW" "168" "$total"
+eq "nombre total de fichiers RAW" "210" "$total"
 
 echo "  -- aucune image uniformement vide --"
 # Un rendu rate (police absente, erreur de dessin) produit typiquement une

@@ -53,6 +53,7 @@ Un bootloader léger qui affiche un menu graphique au démarrage pour choisir en
 - **Menu graphique** affiché directement sur `/dev/fb0` — pas de SDL, zéro segfault
 - **Navigation D-pad** : gauche/droite pour changer d'OS, A pour confirmer, B pour relancer le dernier OS sans passer par le menu
 - **Vibration** au changement et à la confirmation (puissance et durée configurables)
+- **Niveau de batterie** affiché dans le menu, avec indicateur de charge
 - **Timeout 60s** → boot automatique sur le dernier OS choisi si aucune touche pressée
 - **Mémorisation** du dernier choix (fichier `.bootchoice` à la racine SD)
 - **3 langues** : Français, English, Español — menu et installateur traduits
@@ -60,6 +61,7 @@ Un bootloader léger qui affiche un menu graphique au démarrage pour choisir en
 - **Protection parentale** : code secret par séquence de boutons, configurable par OS (optionnel)
 - **Menu de configuration sur la console** : accessible via **X**, protégé par code admin — modifie verrouillage, codes et vibrations directement depuis la Miyoo
 - **Compatible Telmi-Sync** : les histoires, sauvegardes et musiques sont accessibles depuis l'application Telmi-Sync sans reformater la carte
+- **Écrans d'erreur explicites** : un système introuvable affiche le dossier attendu et la marche à suivre, au lieu d'un écran noir suivi d'un redémarrage
 - **Configuration** par fichier texte simple sur la SD — aucun accès PC requis après installation
 - **Installateur Windows EXE** avec interface graphique (log coloré, barre de progression) — formate la SD en FAT32, copie tout, génère les images automatiquement
 - **Installateur PowerShell** alternatif (même fonctionnement, ligne de commande)
@@ -425,7 +427,8 @@ bootloader est donc couverte immédiatement, sans duplication à maintenir.
 | Chargement de la configuration | Valeurs valides appliquées, valeurs hostiles rejetées, boutons réservés refusés, annulation |
 | Séquences et Code Konami | Conversions, variantes matérielles du bouton A, fenêtre glissante |
 | Validation Telmi-Sync | 8 scénarios de carte corrompue, reconnaissance vérifiée à chaque fois |
-| Images du menu | 168 fichiers RAW présents, à la bonne taille, non vides |
+| Jauge de batterie | Lecture du JSON du firmware, paliers d'affichage, valeurs aberrantes |
+| Images du menu | 210 fichiers RAW présents, à la bonne taille, non vides |
 
 Tout est rejoué sous **busybox ash**, le shell qui exécute réellement le
 bootloader sur la console, et sous **dash**. La suite vérifie aussi la syntaxe
@@ -477,6 +480,7 @@ A lightweight bootloader that displays a graphical menu at startup to choose bet
 - **Graphical menu** rendered directly to `/dev/fb0` — no SDL dependency, zero segfaults
 - **D-pad navigation**: left/right to switch OS, A to confirm, B to relaunch last OS without going through the menu
 - **Vibration** on selection change and confirmation (power and duration configurable)
+- **Battery level** shown in the menu, with a charging indicator
 - **60s timeout** → automatic boot on last chosen OS if no button is pressed
 - **Remembers** last choice (`.bootchoice` file at SD root)
 - **3 languages**: Français, English, Español — both menu and installer are translated
@@ -484,6 +488,7 @@ A lightweight bootloader that displays a graphical menu at startup to choose bet
 - **Parental lock**: secret button sequence, configurable per OS (optional)
 - **On-device config menu**: accessible via **X**, protected by admin code — change lock settings, codes and vibration directly from the Miyoo
 - **Telmi-Sync compatible**: stories, saves and music are accessible from the Telmi-Sync app without reformatting the card
+- **Explicit error screens**: a missing system shows the expected folder and what to do, instead of a black screen followed by a reboot
 - **Configuration** via simple text file on SD — no PC needed after installation
 - **Windows EXE installer** with graphical interface (colored log, progress bar) — formats SD to FAT32, copies everything, generates images automatically
 - **PowerShell installer** as alternative (same logic, command line)
@@ -847,7 +852,8 @@ covered immediately, with no duplicate to maintain.
 | Configuration loading | Valid values applied, hostile values rejected, reserved buttons refused, cancel |
 | Sequences and Konami Code | Conversions, hardware variants of the A button, sliding window |
 | Telmi-Sync validation | 8 corrupted-card scenarios, detection verified every time |
-| Menu images | 168 RAW files present, correctly sized, not blank |
+| Battery gauge | Firmware JSON parsing, display steps, out-of-range values |
+| Menu images | 210 RAW files present, correctly sized, not blank |
 
 Everything is replayed under **busybox ash**, the shell that actually runs the
 bootloader on the console, and under **dash**. The suite also syntax-checks

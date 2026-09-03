@@ -267,6 +267,65 @@ CONFIG_TEXTS = {
     },
 }
 
+# ── Textes des ecrans d'erreur ────────────────────────────────
+
+ERROR_TEXTS = {
+    "FR": {
+        "title":        "DEMARRAGE IMPOSSIBLE",
+        "title_warn":   "AVERTISSEMENT",
+        "missing_os":   "{os} est introuvable",
+        "missing_l1":   "Le dossier attendu sur la carte SD est absent",
+        "missing_l2":   "ou incomplet :",
+        "missing_l3":   "Relancez l'installateur Bifrost pour le reinstaller.",
+        "mount_os":     "Donnees inaccessibles",
+        "mount_l1":     "Le montage des dossiers de donnees a echoue.",
+        "mount_l2":     "Le systeme va demarrer sans vos sauvegardes",
+        "mount_l3":     "ni vos jeux. Relancez l'installateur Bifrost.",
+        "log_hint":     "Details :  SD:\\.tmp_update\\logs\\dualboot.log",
+        "footer_wait":  "Redemarrage automatique dans quelques secondes",
+        "footer_go":    "Le demarrage se poursuit dans quelques secondes",
+    },
+    "EN": {
+        "title":        "CANNOT START",
+        "title_warn":   "WARNING",
+        "missing_os":   "{os} was not found",
+        "missing_l1":   "The expected folder on the SD card is missing",
+        "missing_l2":   "or incomplete:",
+        "missing_l3":   "Run the Bifrost installer again to reinstall it.",
+        "mount_os":     "Data unavailable",
+        "mount_l1":     "Mounting the data folders failed.",
+        "mount_l2":     "The system will start without your saves",
+        "mount_l3":     "or your games. Run the Bifrost installer again.",
+        "log_hint":     "Details:  SD:\\.tmp_update\\logs\\dualboot.log",
+        "footer_wait":  "Restarting automatically in a few seconds",
+        "footer_go":    "Startup continues in a few seconds",
+    },
+    "ES": {
+        "title":        "NO SE PUEDE INICIAR",
+        "title_warn":   "ADVERTENCIA",
+        "missing_os":   "{os} no se encuentra",
+        "missing_l1":   "Falta la carpeta esperada en la tarjeta SD",
+        "missing_l2":   "o esta incompleta:",
+        "missing_l3":   "Vuelve a ejecutar el instalador Bifrost.",
+        "mount_os":     "Datos no disponibles",
+        "mount_l1":     "El montaje de las carpetas de datos ha fallado.",
+        "mount_l2":     "El sistema se iniciara sin tus partidas",
+        "mount_l3":     "ni tus juegos. Vuelve a ejecutar el instalador.",
+        "log_hint":     "Detalles:  SD:\\.tmp_update\\logs\\dualboot.log",
+        "footer_wait":  "Reinicio automatico en unos segundos",
+        "footer_go":    "El arranque continua en unos segundos",
+    },
+}
+
+C_ERR_ACC = (235, 90, 80)     # Rouge des ecrans d'erreur
+C_WARN_ACC = (255, 180, 60)   # Ambre des avertissements
+
+# Palette de la jauge de batterie, du plus vide au plus plein.
+C_BAT_CRIT = (235, 80, 70)
+C_BAT_LOW  = (255, 170, 60)
+C_BAT_OK   = (120, 210, 120)
+
+
 # ── Helpers dessin ────────────────────────────────────────────
 
 def lerp_color(c1, c2, t):
@@ -1284,6 +1343,212 @@ def create_config_saved(lang="FR", w=640, h=480) -> Image.Image:
     return img
 
 
+# ── Ecrans d'erreur ───────────────────────────────────────────
+# Jusqu'ici, un systeme introuvable ou un montage rate n'ecrivait que dans
+# le journal : l'utilisateur voyait un ecran noir puis un redemarrage, sans
+# le moindre indice. Ces ecrans transforment une boucle muette en message
+# actionnable.
+
+def _draw_warning_icon(draw, cx, cy, r, accent):
+    """Triangle d'avertissement avec point d'exclamation."""
+    top = (cx, cy - r)
+    left = (cx - int(r * 1.10), cy + int(r * 0.78))
+    right = (cx + int(r * 1.10), cy + int(r * 0.78))
+    for a, b in ((top, left), (left, right), (right, top)):
+        draw.line([a, b], fill=(*accent, 235), width=4)
+
+    bar_top = cy - int(r * 0.34)
+    bar_bot = cy + int(r * 0.26)
+    draw.line([(cx, bar_top), (cx, bar_bot)], fill=(*accent, 235), width=4)
+    draw.ellipse([cx - 3, cy + int(r * 0.44), cx + 3, cy + int(r * 0.44) + 6],
+                 fill=(*accent, 235))
+
+
+def create_error_screen(kind: str, os_name: str, lang: str = "FR",
+                        w: int = 640, h: int = 480) -> Image.Image:
+    """Ecran d'erreur au demarrage.
+
+    kind : "missing" (systeme absent, fatal) ou "mount" (donnees non
+    montees, le demarrage peut continuer).
+    """
+    et = ERROR_TEXTS.get(lang, ERROR_TEXTS["FR"])
+    os_display = "OnionOS" if os_name == "onion" else "TelmiOS"
+    os_path = "SD:\\onion\\" if os_name == "onion" else "SD:\\telmios\\"
+    accent = C_ERR_ACC if kind == "missing" else C_WARN_ACC
+
+    img = Image.new("RGB", (w, h))
+    draw = ImageDraw.Draw(img, "RGBA")
+    draw_gradient_rect(draw, 0, 0, w, h, (14, 8, 10), (22, 14, 18))
+
+    # Barre de titre, teintee de la couleur de gravite.
+    TITLE_H = int(72 * h / 480)
+    draw_gradient_rect(draw, 0, 0, w, TITLE_H, (24, 14, 18), (18, 11, 14))
+    for i, alpha in enumerate([60, 130, 60, 30]):
+        draw.line([(0, TITLE_H - 2 + i), (w, TITLE_H - 2 + i)],
+                  fill=(*accent, alpha))
+    bar_title = et["title"] if kind == "missing" else et["title_warn"]
+    draw_title_bar_text(draw, w, TITLE_H, "MIYOO MINI+", bar_title,
+                        28, 13, C_WHITE, (*accent, 220))
+
+    # Bloc central : icone, sujet, explication, chemin, renvoi au journal.
+    if kind == "missing":
+        subject = et["missing_os"].format(os=os_display)
+        lines = [et["missing_l1"], et["missing_l2"]]
+        tail = et["missing_l3"]
+    else:
+        subject = et["mount_os"]
+        lines = [et["mount_l1"], et["mount_l2"]]
+        tail = et["mount_l3"]
+
+    ICON_R = 34
+    f_subject = fit_font(draw, subject, w - 60, 22, bold=True)
+    f_line    = get_font(13)
+    f_path    = get_font(15, bold=True)
+    f_tail    = get_font(12)
+    f_log     = get_font(10)
+
+    subject_h = draw.textbbox((0, 0), subject, font=f_subject)[3]
+    line_h    = draw.textbbox((0, 0), "Ag", font=f_line)[3] + 8
+    path_h    = draw.textbbox((0, 0), os_path, font=f_path)[3]
+    tail_h    = draw.textbbox((0, 0), tail, font=f_tail)[3]
+    log_h     = draw.textbbox((0, 0), et["log_hint"], font=f_log)[3]
+
+    show_path = (kind == "missing")
+    block_h = (ICON_R * 2 + 22 + subject_h + 20 + len(lines) * line_h
+               + (path_h + 22 if show_path else 0) + 18 + tail_h + 20 + log_h)
+
+    avail_top, avail_bot = TITLE_H + 10, h - 56
+    y = avail_top + max(0, ((avail_bot - avail_top) - block_h) // 2)
+
+    _draw_warning_icon(draw, w // 2, y + ICON_R, ICON_R, accent)
+    y += ICON_R * 2 + 22
+
+    text_center(draw, subject, y, f_subject, C_WHITE, w)
+    y += subject_h + 20
+
+    for ln in lines:
+        text_center_fit(draw, ln, y, 13, C_GRAY, w, w - 40)
+        y += line_h
+
+    if show_path:
+        y += 6
+        pw = text_width(draw, os_path, f_path)
+        draw.rounded_rectangle([(w - pw) // 2 - 16, y - 6,
+                                (w + pw) // 2 + 16, y + path_h + 8],
+                               radius=6, fill=(30, 18, 22),
+                               outline=(*accent, 150), width=1)
+        text_center(draw, os_path, y, f_path, (*accent, 235), w)
+        y += path_h + 22
+
+    if show_path:
+        y += 12
+    text_center_fit(draw, tail, y, 12, C_WHITE, w, w - 40)
+    y += tail_h + 20
+    text_center_fit(draw, et["log_hint"], y, 10, C_DIM, w, w - 24)
+
+    # Barre du bas : ce que la console va faire, ou ce que l'utilisateur peut faire.
+    HELP_Y = h - 46
+    draw_gradient_rect(draw, 0, HELP_Y, w, h, (20, 12, 16), (12, 8, 11))
+    draw.line([(0, HELP_Y), (w, HELP_Y)], fill=(*accent, 120))
+    footer = et["footer_wait"] if kind == "missing" else et["footer_go"]
+    text_center_fit(draw, footer, HELP_Y + 15, 11, (*accent, 210), w, w - 16)
+
+    return img
+
+
+# ── Jauge de batterie ─────────────────────────────────────────
+# Le niveau change a chaque demarrage : il ne peut pas etre grave dans les
+# images du menu. Plutot que de composer un petit sprite pixel par pixel
+# (une ecriture par ligne, donc lent et visible a chaque navigation), on
+# pre-rend la BARRE DE TITRE ENTIERE avec la jauge dessinee dedans. Le
+# bandeau est identique sur les deux ecrans de menu et dans les trois
+# langues, il suffit donc de le reecrire d'un seul bloc contigu.
+
+BAT_BUCKETS = ("0", "25", "50", "75", "100", "unknown")
+
+
+def _bat_color(bucket):
+    if bucket == "unknown":
+        return C_GRAY
+    level = int(bucket)
+    if level <= 10:
+        return C_BAT_CRIT
+    if level <= 25:
+        return C_BAT_LOW
+    return C_BAT_OK
+
+
+def _draw_battery(draw, x1, cy, bucket, charging):
+    """Dessine une jauge dont le bord droit est en x1, centree sur cy."""
+    bw, bh = 40, 20
+    x0 = x1 - bw
+    y0, y1 = cy - bh // 2, cy + bh // 2
+    col = _bat_color(bucket)
+
+    # Borne positive.
+    draw.rounded_rectangle([x1 + 1, cy - 5, x1 + 4, cy + 5], radius=1,
+                           fill=(*C_GRAY, 200))
+    # Corps. Le contour vire au rouge en dessous du seuil critique, pour que
+    # l'alerte se lise sans avoir a jauger la longueur de la barre.
+    shell = col if bucket == "0" else C_GRAY
+    draw.rounded_rectangle([x0, y0, x1, y1], radius=4,
+                           fill=(12, 15, 26), outline=(*shell, 220), width=2)
+
+    inner_x0, inner_y0 = x0 + 4, y0 + 4
+    inner_x1, inner_y1 = x1 - 4, y1 - 4
+
+    if bucket == "unknown":
+        # Niveau indisponible : un tiret plutot qu'une valeur inventee.
+        my = (inner_y0 + inner_y1) // 2
+        draw.line([(inner_x0 + 3, my), (inner_x1 - 3, my)],
+                  fill=(*C_GRAY, 200), width=2)
+    else:
+        level = int(bucket)
+        full_w = inner_x1 - inner_x0
+        # Meme a plat, on trace un filet : une jauge entierement vide serait
+        # indiscernable d'une jauge sans information.
+        fill_w = max(3, int(full_w * level / 100))
+        draw.rectangle([inner_x0, inner_y0, inner_x0 + fill_w, inner_y1],
+                       fill=(*col, 235))
+
+    if charging:
+        # Eclair, trace par-dessus la jauge.
+        mx = (x0 + x1) // 2
+        bolt = [(mx + 3, cy - 8), (mx - 5, cy + 1), (mx, cy + 1),
+                (mx - 3, cy + 8), (mx + 5, cy - 1), (mx, cy - 1)]
+        draw.polygon(bolt, fill=(255, 245, 190))
+        draw.line(bolt + [bolt[0]], fill=(60, 50, 20), width=1)
+
+
+def create_titlebar_band(bucket, charging, w=640, h=480):
+    """Bandeau de titre complet, jauge comprise, pret a etre blitte.
+
+    Reconstruit exactement le fond et l'entete de create_bootmenu pour que
+    le raccord soit invisible, puis rogne la bande utile.
+    """
+    img = Image.new("RGB", (w, h))
+    draw = ImageDraw.Draw(img, "RGBA")
+
+    draw_gradient_rect(draw, 0, 0, w, h, C_BG_TOP, C_BG_BOT)
+
+    TITLE_H = int(72 * h / 480)
+    draw_gradient_rect(draw, 0, 0, w, TITLE_H, (15, 18, 32), (12, 15, 28))
+    for i, alpha in enumerate([60, 120, 60, 30]):
+        draw.line([(0, TITLE_H - 2 + i), (w, TITLE_H - 2 + i)],
+                  fill=(80, 120, 200, alpha))
+
+    # Le sous-titre est identique dans les trois langues : un seul jeu de
+    # bandeaux suffit donc pour toutes les langues.
+    draw_title_bar_text(draw, w, TITLE_H, "MIYOO MINI+", "DUAL BOOT SELECTOR",
+                        28, 13, C_WHITE, C_GRAY)
+
+    _draw_battery(draw, w - 18, TITLE_H // 2, bucket, charging)
+
+    # La bande descend un peu sous la barre pour emporter le filet lumineux,
+    # tout en restant au-dessus des panneaux (qui commencent a TITLE_H + 18).
+    return img.crop((0, 0, w, TITLE_H + 6))
+
+
 # ── Conversion PNG -> RAW BGRA ─────────────────────────────────
 
 def save_raw(img: Image.Image, path: str):
@@ -1343,6 +1608,42 @@ def _generate_all_images(suffix, sd_res, w, h):
             if lang == "FR" and not suffix:
                 _save_preview(img, f"bootmenu_{os_name}_FR.png")
                 _save_preview(img_lock, f"bootmenu_locked_{os_name}_FR.png")
+
+    # ── Ecrans d'erreur ──────────────────────────────────────────
+    print(f"\n{'-'*30}")
+    print(f"  Ecrans d'erreur  [{w}x{h}]")
+    print(f"{'-'*30}")
+
+    for lang in ("FR", "EN", "ES"):
+        for os_name in ("onion", "telmios"):
+            img = create_error_screen("missing", os_name, lang, w, h)
+            name = f"bootmenu_error_missing_{os_name}_{lang}{suffix}.raw"
+            nb = save_raw(img, os.path.join(sd_res, name))
+            print(f"     {name} ({nb} octets)")
+            if lang == "FR" and not suffix:
+                _save_preview(img, f"bootmenu_error_missing_{os_name}_FR.png")
+
+        # L'ecran de montage ne nomme aucun systeme : un seul par langue.
+        img = create_error_screen("mount", "onion", lang, w, h)
+        name = f"bootmenu_error_mount_{lang}{suffix}.raw"
+        nb = save_raw(img, os.path.join(sd_res, name))
+        print(f"     {name} ({nb} octets)")
+        if lang == "FR" and not suffix:
+            _save_preview(img, "bootmenu_error_mount_FR.png")
+
+    # ── Bandeaux de titre avec jauge de batterie ─────────────────
+    # Independants de la langue : le sous-titre est le meme partout.
+    print(f"\n{'-'*30}")
+    print(f"  Bandeaux batterie  [{w}x{h}]")
+    print(f"{'-'*30}")
+
+    for bucket in BAT_BUCKETS:
+        for charging in (False, True):
+            band = create_titlebar_band(bucket, charging, w, h)
+            chg = "_chg" if charging else ""
+            name = f"bootmenu_battery_{bucket}{chg}{suffix}.raw"
+            nb = save_raw(band, os.path.join(sd_res, name))
+            print(f"     {name} ({nb} octets, bande {band.height} lignes)")
 
     # ── Images du menu de configuration ──────────────────────────
     print(f"\n{'-'*30}")

@@ -315,6 +315,47 @@ if [ "$is_charging" = "1" ]; then
     fi
 fi
 
+# =============================================================
+#  NIVEAU DE BATTERIE
+#  Mini Plus : le binaire du firmware d'origine /customer/app/axp_test
+#  rend {"battery":75, "voltage":4100, "charging":0}. C'est exactement la
+#  source qu'utilise batmon dans OnionOS comme dans TelmiOS.
+#  Mini : la lecture passe par /dev/sar et un ioctl, hors de portee d'un
+#  script shell. Le niveau reste alors inconnu et la jauge affiche un
+#  tiret plutot qu'une valeur inventee.
+# =============================================================
+# Extrait la valeur entiere d'un champ JSON.  $1 = texte, $2 = champ.
+_json_int() {
+    echo "$1" | sed -n "s/.*\"$2\"[^0-9]*\([0-9][0-9]*\).*/\\1/p" | head -1
+}
+
+# Traduit un niveau 0-100 en palier d'image. Toute valeur hors bornes ou
+# non numerique donne "unknown" : mieux vaut un tiret qu'un chiffre faux.
+_bat_bucket() {
+    if ! _is_num "$1"; then         echo unknown
+    elif [ "$1" -gt 100 ]; then     echo unknown
+    elif [ "$1" -lt 10 ]; then      echo 0
+    elif [ "$1" -lt 35 ]; then      echo 25
+    elif [ "$1" -lt 60 ]; then      echo 50
+    elif [ "$1" -lt 85 ]; then      echo 75
+    else                            echo 100
+    fi
+}
+
+read_battery() {
+    BAT_BUCKET="unknown"
+    case "$is_charging" in 1) BAT_CHARGING=1 ;; *) BAT_CHARGING=0 ;; esac
+
+    if [ "$DEVICE_ID" = "$MODEL_MMP" ] && [ -x /customer/app/axp_test ]; then
+        _axp=$(cd /customer/app/ 2>/dev/null && ./axp_test 2>/dev/null)
+        BAT_BUCKET=$(_bat_bucket "$(_json_int "$_axp" battery)")
+        [ "$(_json_int "$_axp" charging)" = "1" ] && BAT_CHARGING=1
+    fi
+    log "Batterie: niveau=$BAT_BUCKET charge=$BAT_CHARGING"
+}
+
+read_battery
+
 # ---- Vibration (puissance 1-100) ----
 vibrate() {
     local ms="${1:-100}"
@@ -937,6 +978,41 @@ show_menu() {
     else
         log "show_menu $name: MISSING ($img_lang)"
     fi
+
+    # Les deux ecrans de choix portent la jauge de batterie. Le bandeau est
+    # repose apres l'image, qui vient de l'ecraser.
+    case "$name" in
+        onion|telmios) battery_band_blit ;;
+    esac
+}
+
+# =============================================================
+#  ECRANS D'ERREUR
+#  Sans eux, un systeme introuvable donnait un ecran noir suivi d'un
+#  redemarrage : une boucle muette, impossible a diagnostiquer sans lire
+#  le journal depuis un PC.
+# =============================================================
+show_error() {
+    _e="$sysdir/res/bootmenu_$1_${UI_LANG}${RES_SUFFIX}.raw"
+    [ -f "$_e" ] || _e="$sysdir/res/bootmenu_$1_${UI_LANG}.raw"
+    [ -f "$_e" ] || _e="$sysdir/res/bootmenu_$1_EN${RES_SUFFIX}.raw"
+
+    if [ -f "$_e" ]; then
+        dd if="$_e" of=/dev/fb0 bs=4096 2>/dev/null
+        sync
+        log "show_error $1: OK"
+        return 0
+    fi
+
+    # Dernier recours : un aplat gris. Un ecran visiblement anormal vaut
+    # mieux qu'un ecran noir, indiscernable d'une console eteinte.
+    if head -c $((FB_W * FB_H * 4)) /dev/zero 2>/dev/null \
+       | tr '\000' '\110' > /dev/fb0 2>/dev/null; then
+        log "show_error $1: image absente, aplat de secours"
+    else
+        log "show_error $1: image absente et aplat impossible"
+    fi
+    return 1
 }
 
 log "fb0 bits=$(cat /sys/class/graphics/fb0/bits_per_pixel 2>/dev/null)"
@@ -952,6 +1028,28 @@ else
     RES_SUFFIX=""
     log "Resolution FB: ${FB_W}x${FB_H} -> images standard"
 fi
+
+# ---- Bandeau de titre porteur de la jauge de batterie ----
+# Le niveau change a chaque demarrage : il ne peut pas etre grave dans les
+# images du menu. Plutot que de composer un petit sprite ligne par ligne
+# (une ecriture par ligne, donc un temps de latence visible a chaque
+# navigation), on reecrit le bandeau de titre entier, deja rendu avec la
+# jauge. Il est identique sur les deux ecrans de menu et dans les trois
+# langues : une seule ecriture contigue suffit.
+_title_h=$((72 * FB_H / 480))
+BAND_H=$((_title_h + 6))
+_chg_sfx=""
+[ "$BAT_CHARGING" = "1" ] && _chg_sfx="_chg"
+BAT_BAND="$sysdir/res/bootmenu_battery_${BAT_BUCKET}${_chg_sfx}${RES_SUFFIX}.raw"
+[ -f "$BAT_BAND" ] || { log "Bandeau batterie absent: $BAT_BAND"; BAT_BAND=""; }
+
+# L'ecran est monte a 180 degres : le bandeau logique du haut occupe les
+# dernieres lignes du framebuffer.
+battery_band_blit() {
+    [ -n "$BAT_BAND" ] || return
+    dd if="$BAT_BAND" of=/dev/fb0 bs=$((FB_W * 4)) \
+       seek=$((FB_H - BAND_H)) count=$BAND_H conv=notrunc 2>/dev/null
+}
 
 # =============================================================
 #  MODE STEALTH : boot silencieux avec acces au menu via Konami code
@@ -1197,6 +1295,31 @@ log "Saved: $SELECTION"
 
 [ "$SELECTION" = "telmios" ] && OS_DIR="$TELMIOS_DIR" || OS_DIR="$ONION_DIR"
 
+# =============================================================
+#  VERIFICATION DU SYSTEME CIBLE, AVANT TOUT MONTAGE
+#  Une fois .tmp_update remonte sur celui de l'OS, le dossier res/ de
+#  Bifrost est masque : plus aucune image d'erreur n'est accessible. La
+#  verification doit donc precer les montages.
+# =============================================================
+if [ ! -d "$OS_DIR" ] || [ ! -f "$OS_DIR/.tmp_update/runtime.sh" ]; then
+    log "ERREUR: $SELECTION introuvable ou incomplet ($OS_DIR)"
+    show_error "error_missing_$SELECTION"
+    log_sync "Redemarrage dans 10s"
+    sleep 10
+    reboot
+fi
+
+# L'avertissement de montage est recopie en memoire tant qu'il est encore
+# lisible : apres le montage de .tmp_update, il ne le serait plus.
+ERR_MOUNT_TMP=/tmp/bifrost_err_mount.raw
+_err_mount_src="$sysdir/res/bootmenu_error_mount_${UI_LANG}${RES_SUFFIX}.raw"
+[ -f "$_err_mount_src" ] || _err_mount_src="$sysdir/res/bootmenu_error_mount_EN${RES_SUFFIX}.raw"
+if [ -f "$_err_mount_src" ]; then
+    cp -f "$_err_mount_src" "$ERR_MOUNT_TMP" 2>/dev/null || ERR_MOUNT_TMP=""
+else
+    ERR_MOUNT_TMP=""
+fi
+
 # ---- Rotation log OS ----
 mkdir -p "$OS_DIR/.tmp_update/logs" 2>/dev/null
 > "$OS_DIR/.tmp_update/logs/dualboot.log" 2>/dev/null
@@ -1206,11 +1329,25 @@ vibrate "$VIBRATION_CONFIRM"
 sleep 0.1
 
 # ---- Bind mounts ----
+_mount_failed=0
+_mount_core_failed=0
 umount $miyoodir 2>/dev/null
-mount --bind "$OS_DIR/.tmp_update" /mnt/SDCARD/.tmp_update && \
-    log "mount .tmp_update OK" || log "mount .tmp_update FAILED"
-mount --bind "$OS_DIR/miyoo" $miyoodir && \
-    log "mount miyoo OK" || log "mount miyoo FAILED"
+if mount --bind "$OS_DIR/.tmp_update" /mnt/SDCARD/.tmp_update; then
+    log "mount .tmp_update OK"
+else
+    # Echec fatal : sans ce montage, /mnt/SDCARD/.tmp_update/runtime.sh
+    # designe encore Bifrost lui-meme. L'executer relancerait le menu en
+    # boucle sans fin.
+    log "mount .tmp_update FAILED (fatal)"
+    _mount_core_failed=1
+    _mount_failed=1
+fi
+if mount --bind "$OS_DIR/miyoo" $miyoodir; then
+    log "mount miyoo OK"
+else
+    log "mount miyoo FAILED"
+    _mount_failed=1
+fi
 [ "$SELECTION" = "telmios" ] && [ -d "$OS_DIR/miyoo354" ] && \
     mount --bind "$OS_DIR/miyoo354" /mnt/SDCARD/miyoo354 2>/dev/null
 
@@ -1221,6 +1358,23 @@ for datadir in Saves Roms BIOS App Emu RetroArch Music Stories Themes Icons Medi
         log "Mounted $datadir"
     }
 done
+
+# Les montages essentiels ont echoue : le systeme demarrera sans ses
+# donnees. On previent a l'ecran, sans bloquer le demarrage.
+if [ "$_mount_failed" = "1" ] && [ -n "$ERR_MOUNT_TMP" ] && [ -f "$ERR_MOUNT_TMP" ]; then
+    dd if="$ERR_MOUNT_TMP" of=/dev/fb0 bs=4096 2>/dev/null
+    sync
+    log "Avertissement de montage affiche"
+    sleep 5
+fi
+
+if [ "$_mount_core_failed" = "1" ]; then
+    log_sync "Montage essentiel echoue : redemarrage plutot qu'une boucle"
+    rm -f "$ERR_MOUNT_TMP" 2>/dev/null
+    sleep 3
+    reboot
+fi
+rm -f "$ERR_MOUNT_TMP" 2>/dev/null
 
 rm -f /tmp/is_booting
 
