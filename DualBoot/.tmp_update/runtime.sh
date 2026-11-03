@@ -4,7 +4,7 @@
 #  Affichage direct sur /dev/fb0 (bypass SDL = pas de segfault)
 # =============================================================
 
-BIFROST_VERSION="1.3.0-beta"
+BIFROST_VERSION="1.3.1-beta"
 
 sysdir=/mnt/SDCARD/.tmp_update
 miyoodir=/mnt/SDCARD/miyoo
@@ -1342,7 +1342,10 @@ else
     _mount_core_failed=1
     _mount_failed=1
 fi
-if mount --bind "$OS_DIR/miyoo" $miyoodir; then
+if [ "$SELECTION" = "telmios" ] && [ ! -d "$OS_DIR/miyoo" ]; then
+    # TelmiOS >= 1.10 ne fournit plus de dossier miyoo : absence normale.
+    log "telmios/miyoo absent : pas de montage (normal)"
+elif mount --bind "$OS_DIR/miyoo" $miyoodir; then
     log "mount miyoo OK"
 else
     log "mount miyoo FAILED"
