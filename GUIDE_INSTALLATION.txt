@@ -100,15 +100,22 @@ dans telmios\. Deplacez donc ces trois dossiers :
 Bifrost les remonte automatiquement pour TelmiOS au
 demarrage : rien d'autre n'est a faire.
 
-ETAPE 8 - Declarer la version pour Telmi-Sync
----------------------------------------------
+ETAPE 8 - Declarer la carte pour Telmi-Sync
+------------------------------------------
 Telmi-Sync reconnait la carte grace au libelle de
-SD:\autorun.inf. Faites-le correspondre a la version de
-TelmiOS que vous venez d'installer, par exemple :
+SD:\autorun.inf. Ecrivez toujours la version 99.99.99,
+quelle que soit la version de TelmiOS installee :
 
   [autorun]
   icon  = .tmp_update/res/sdcard.ico
-  label = TelmiOS-v1.10.3
+  label = TelmiOS-v99.99.99
+
+Pourquoi 99.99.99 : si le libelle porte une version plus
+ancienne que la derniere version publiee de TelmiOS,
+Telmi-Sync installe la mise a jour a la racine de la carte
+et ecrase le menu Bifrost. Avec 99.99.99, il n'installe
+jamais rien. Bifrost reecrit cette valeur a chaque
+demarrage de la console.
 
 Verifiez aussi que SD:\Saves\.parameters existe et
 contient du JSON valide : Telmi-Sync le lit sans verifier
@@ -210,10 +217,16 @@ Telmi-Sync ne reconnait pas la carte
   SD:\Saves\.parameters doit contenir du JSON valide.
 
 Le menu Bifrost a disparu apres une mise a jour Telmi-Sync
-  Le bouton "mettre a jour TelmiOS" de Telmi-Sync ecrit a la
+  Telmi-Sync a installe une mise a jour de TelmiOS a la
   racine de la carte et remplace le bootloader. Relancez
   l'installateur Bifrost pour le restaurer ; les histoires
-  et les reglages sont conserves.
+  et les reglages sont conserves. Depuis la version 1.5.0,
+  le libelle 99.99.99 empeche que cela se reproduise.
+
+Telmi-Sync affiche "TelmiOS v99.99.99"
+  C'est voulu : ce numero empeche Telmi-Sync d'ecraser le
+  menu Bifrost. Pour mettre TelmiOS a jour, relancez
+  l'installateur Bifrost avec la nouvelle archive.
 
 ===========================================================
   NOTES
@@ -322,15 +335,21 @@ telmios\. So move these three folders:
 Bifrost mounts them back for TelmiOS at boot: nothing else
 to do.
 
-STEP 8 - Declare the version for Telmi-Sync
--------------------------------------------
+STEP 8 - Declare the card for Telmi-Sync
+----------------------------------------
 Telmi-Sync recognizes the card through the label in
-SD:\autorun.inf. Match it to the TelmiOS version you just
-installed, for example:
+SD:\autorun.inf. Always write version 99.99.99, whatever
+TelmiOS version is installed:
 
   [autorun]
   icon  = .tmp_update/res/sdcard.ico
-  label = TelmiOS-v1.10.3
+  label = TelmiOS-v99.99.99
+
+Why 99.99.99: if the label carries a version older than the
+latest published TelmiOS release, Telmi-Sync installs the
+update at the card root and overwrites the Bifrost menu.
+With 99.99.99 it never installs anything. Bifrost rewrites
+this value each time the console boots.
 
 Also make sure SD:\Saves\.parameters exists and holds valid
 JSON: Telmi-Sync reads it without checking that it is there,
@@ -432,9 +451,16 @@ Telmi-Sync does not recognize the card
   SD:\Saves\.parameters must hold valid JSON.
 
 The Bifrost menu vanished after a Telmi-Sync update
-  Telmi-Sync's "update TelmiOS" button writes to the card
-  root and replaces the bootloader. Re-run the Bifrost
-  installer to restore it; stories and settings are kept.
+  Telmi-Sync installed a TelmiOS update at the card root
+  and replaced the bootloader. Re-run the Bifrost installer
+  to restore it; stories and settings are kept. Since
+  version 1.5.0, the 99.99.99 label keeps this from
+  happening again.
+
+Telmi-Sync shows "TelmiOS v99.99.99"
+  Intended: that number keeps Telmi-Sync from overwriting
+  the Bifrost menu. To update TelmiOS, re-run the Bifrost
+  installer with the new archive.
 
 ===========================================================
   NOTES

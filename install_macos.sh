@@ -402,26 +402,16 @@ if [[ $param_ok -eq 0 ]]; then
     echo "    [Telmi-Sync] Saves/.parameters installe"
 fi
 
-# --- Telmi-Sync : autorun.inf doit annoncer la version reellement installee ---
-# Telmi-Sync identifie la carte par le label "TelmiOS-vX.Y.Z" de autorun.inf.
-# Un label perime lui ferait proposer une mise a jour de TelmiOS, laquelle
-# ecraserait .tmp_update a la racine, donc le bootloader Bifrost lui-meme.
-telmi_ver=""
-telmi_ver_file="$SD/telmios/.tmp_update/telmiVersion/version.txt"
-if [[ -f "$telmi_ver_file" ]]; then
-    telmi_ver=$(tr -d ' \t\r\n' < "$telmi_ver_file" | sed -n 's/^v\{0,1\}\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)$/\1/p')
-fi
-if [[ -z "$telmi_ver" && -f "$SRC_TELMIOS/autorun.inf" ]]; then
-    telmi_ver=$(sed -n 's/.*label[[:space:]]*=[[:space:]]*TelmiOS-v\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' "$SRC_TELMIOS/autorun.inf" | head -1)
-fi
-if [[ -n "$telmi_ver" ]]; then
-    printf '[autorun]\r\nicon  = .tmp_update/res/sdcard.ico\r\nlabel = TelmiOS-v%s\r\n' "$telmi_ver" > "$SD/autorun.inf"
-    log_only "autorun.inf : label = TelmiOS-v$telmi_ver"
-    echo "    [Telmi-Sync] Carte annoncee comme TelmiOS-v$telmi_ver"
-else
-    log_only "Version TelmiOS indeterminee - autorun.inf laisse tel quel"
-    echo "    [AVERT] Version TelmiOS indeterminee dans autorun.inf"
-fi
+# --- Telmi-Sync : autorun.inf annonce une version figee a 99.99.99 ---
+# Telmi-Sync identifie la carte par le label "TelmiOS-vX.Y.Z" de autorun.inf
+# et compare ce numero a la derniere version publiee de TelmiOS. S'il est plus
+# ancien, il decompresse la mise a jour a la racine de la carte, ce qui ecrase
+# .tmp_update, donc le bootloader Bifrost lui-meme. Avec 99.99.99, Telmi-Sync
+# n'installe jamais rien ; runtime.sh applique la meme valeur a chaque demarrage.
+telmi_ver="99.99.99"
+printf '[autorun]\r\nicon  = .tmp_update/res/sdcard.ico\r\nlabel = TelmiOS-v%s\r\n' "$telmi_ver" > "$SD/autorun.inf"
+log_only "autorun.inf : label = TelmiOS-v$telmi_ver"
+echo "    [Telmi-Sync] Carte annoncee comme TelmiOS-v$telmi_ver"
 
 # ==================================================================
 step "ETAPE 7/8 — Installation de OnionOS  [peut prendre quelques minutes]..."

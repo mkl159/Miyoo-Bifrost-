@@ -559,32 +559,17 @@ if (-not $paramOk) {
     Write-Host "  [Telmi-Sync] Saves\.parameters installe" -ForegroundColor Gray
 }
 
-# --- Telmi-Sync : autorun.inf doit annoncer la version reellement installee ---
-# Telmi-Sync identifie la carte par le label "TelmiOS-vX.Y.Z" de autorun.inf.
-# Un label perime lui ferait proposer une mise a jour de TelmiOS, laquelle
-# ecraserait .tmp_update a la racine, donc le bootloader Bifrost lui-meme.
-$telmiVer = $null
-$telmiVerFile = "$SD\telmios\.tmp_update\telmiVersion\version.txt"
-if (Test-Path $telmiVerFile) {
-    $rawVer = (Get-Content $telmiVerFile -Raw).Trim()
-    if ($rawVer -match '^v?(\d+\.\d+\.\d+)$') { $telmiVer = $Matches[1] }
-}
-if (-not $telmiVer) {
-    $srcAutorun = "$SRC_TELMIOS\autorun.inf"
-    if (Test-Path $srcAutorun) {
-        $m = [regex]::Match((Get-Content $srcAutorun -Raw), 'label\s*=\s*TelmiOS-v(\d+\.\d+\.\d+)')
-        if ($m.Success) { $telmiVer = $m.Groups[1].Value }
-    }
-}
-if ($telmiVer) {
-    $autorunTxt = "[autorun]`r`nicon  = .tmp_update/res/sdcard.ico`r`nlabel = TelmiOS-v$telmiVer`r`n"
-    Set-Content -Path "$SD\autorun.inf" -Value $autorunTxt -Encoding ASCII -NoNewline
-    Log "autorun.inf : label = TelmiOS-v$telmiVer"
-    Write-Host "  [Telmi-Sync] Carte annoncee comme TelmiOS-v$telmiVer" -ForegroundColor Gray
-} else {
-    Log "Version TelmiOS indeterminee - autorun.inf laisse tel quel" "WARN"
-    Write-Host "  [AVERT] Version TelmiOS indeterminee dans autorun.inf" -ForegroundColor Yellow
-}
+# --- Telmi-Sync : autorun.inf annonce une version figee a 99.99.99 ---
+# Telmi-Sync identifie la carte par le label "TelmiOS-vX.Y.Z" de autorun.inf
+# et compare ce numero a la derniere version publiee de TelmiOS. S'il est plus
+# ancien, il decompresse la mise a jour a la racine de la carte, ce qui ecrase
+# .tmp_update, donc le bootloader Bifrost lui-meme. Avec 99.99.99, Telmi-Sync
+# n'installe jamais rien ; runtime.sh applique la meme valeur a chaque demarrage.
+$telmiVer = "99.99.99"
+$autorunTxt = "[autorun]`r`nicon  = .tmp_update/res/sdcard.ico`r`nlabel = TelmiOS-v$telmiVer`r`n"
+Set-Content -Path "$SD\autorun.inf" -Value $autorunTxt -Encoding ASCII -NoNewline
+Log "autorun.inf : label = TelmiOS-v$telmiVer"
+Write-Host "  [Telmi-Sync] Carte annoncee comme TelmiOS-v$telmiVer" -ForegroundColor Gray
 Log "Telmi-Sync prep terminee"
 
 # =============================================================

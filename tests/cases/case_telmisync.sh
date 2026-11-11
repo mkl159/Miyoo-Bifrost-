@@ -62,34 +62,70 @@ detect() {
     echo "$_v"
 }
 
-echo "  -- carte saine : reconnue, et aucune reecriture inutile --"
+# Version figee ecrite par Bifrost. Telmi-Sync (Processes/TelmiOS/Update.js)
+# compare ce numero a la derniere version publiee de TelmiOS et, s'il est
+# plus ancien, decompresse la mise a jour a la racine de la carte : le
+# .tmp_update de Bifrost est alors ecrase. 99.99.99 n'est jamais plus ancien.
+PINNED="99.99.99"
+
+# Reproduit isNewerVersion(carte, publiee) de Telmi-Sync : succes si
+# Telmi-Sync lancerait la mise a jour.
+would_update() {
+    _c=$1; _p=$2
+    _cM=${_c%%.*}; _cr=${_c#*.}; _cm=${_cr%%.*}; _cf=${_cr#*.}
+    _pM=${_p%%.*}; _pr=${_p#*.}; _pm=${_pr%%.*}; _pf=${_pr#*.}
+    [ "$_cM" -lt "$_pM" ] && return 0
+    [ "$_cM" -eq "$_pM" ] && [ "$_cm" -lt "$_pm" ] && return 0
+    [ "$_cM" -eq "$_pM" ] && [ "$_cm" -eq "$_pm" ] && [ "$_cf" -lt "$_pf" ] && return 0
+    return 1
+}
+
+echo "  -- libelle a la vraie version : remplace par la version figee --"
 make_card
+validate
+eq "carte reconnue, version figee" "$PINNED" "$(detect)"
+
+echo "  -- libelle deja fige : aucune reecriture inutile --"
 before=$(cat "$CARD/autorun.inf")
 validate
-eq "carte reconnue"        "1.10.3" "$(detect)"
 eq "autorun.inf inchange"  "$before" "$(cat "$CARD/autorun.inf")"
+
+echo "  -- Telmi-Sync ne declenche jamais la mise a jour de TelmiOS --"
+ko_cmd would_update "1.10.1" "1.10.1"
+ok_cmd would_update "1.10.1" "1.10.4"
+for published in 1.10.4 1.11.0 2.0.0 9.9.9 99.99.98 99.99.99; do
+    if would_update "$(detect)" "$published"; then
+        eq "pas de mise a jour face a TelmiOS $published" "non" "oui"
+    else
+        eq "pas de mise a jour face a TelmiOS $published" "non" "non"
+    fi
+done
 
 echo "  -- .parameters absent : restaure --"
 make_card; rm -f "$CARD/Saves/.parameters"
 validate
-eq "carte reconnue apres reparation" "1.10.3" "$(detect)"
+eq "carte reconnue apres reparation" "$PINNED" "$(detect)"
 
 echo "  -- .parameters corrompu : remplace --"
 make_card; echo "ceci n'est pas du json" > "$CARD/Saves/.parameters"
 validate
-eq "carte reconnue apres reparation" "1.10.3" "$(detect)"
+eq "carte reconnue apres reparation" "$PINNED" "$(detect)"
 
 echo "  -- autorun.inf absent : recree --"
 make_card; rm -f "$CARD/autorun.inf"
 validate
-eq "carte reconnue apres reparation" "1.10.3" "$(detect)"
+eq "carte reconnue apres reparation" "$PINNED" "$(detect)"
 
-echo "  -- TelmiOS mis a jour : le libelle suit --"
-# Sans cela, Telmi-Sync proposerait une mise a jour de TelmiOS qui se
-# decompresse a la racine et remplacerait le bootloader Bifrost.
+echo "  -- autorun.inf ecrase par OnionOS : repare --"
+make_card
+printf '[autorun]\r\nicon  = .tmp_update/res/sdcard.ico\r\nlabel = Onion-v4.3.1\r\n' > "$CARD/autorun.inf"
+validate
+eq "carte reconnue apres reparation" "$PINNED" "$(detect)"
+
+echo "  -- TelmiOS mis a jour sur la carte : le libelle ne suit pas --"
 make_card; printf 'v1.11.0' > "$CARD/telmios/.tmp_update/telmiVersion/version.txt"
 validate
-eq "libelle aligne sur la version installee" "1.11.0" "$(detect)"
+eq "libelle fige quelle que soit la version installee" "$PINNED" "$(detect)"
 
 echo "  -- dossiers de donnees effaces : recrees --"
 make_card; rm -rf "$CARD/Stories" "$CARD/Music"
@@ -97,13 +133,16 @@ validate
 ok_cmd test -d "$CARD/Stories"
 ok_cmd test -d "$CARD/Music"
 
-echo "  -- version indeterminee : libelle laisse intact --"
+echo "  -- fichier de version absent ou illisible : libelle fige quand meme --"
 for bad in "" "bidon" "1.10" "1.10.3.4" "v1.2.3-beta"; do
     make_card
     printf '%s' "$bad" > "$CARD/telmios/.tmp_update/telmiVersion/version.txt"
     validate
-    eq "libelle preserve pour version '$bad'" "1.10.3" "$(detect)"
+    eq "libelle fige pour version '$bad'" "$PINNED" "$(detect)"
 done
+make_card; rm -rf "$CARD/telmios/.tmp_update/telmiVersion"
+validate
+eq "libelle fige sans fichier de version" "$PINNED" "$(detect)"
 
 echo "  -- carte en lecture seule : aucun plantage --"
 make_card; rm -f "$CARD/Saves/.parameters"; chmod -w "$CARD/Saves" 2>/dev/null

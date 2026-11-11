@@ -4,7 +4,7 @@
 #  Affichage direct sur /dev/fb0 (bypass SDL = pas de segfault)
 # =============================================================
 
-BIFROST_VERSION="1.3.1-beta"
+BIFROST_VERSION="1.5.0"
 
 sysdir=/mnt/SDCARD/.tmp_update
 miyoodir=/mnt/SDCARD/miyoo
@@ -166,6 +166,17 @@ log "Config: LANG=$UI_LANG VP=$VIBRATION_POWER VS=$VIBRATION_SELECT VC=$VIBRATIO
 #  Il lit .parameters SANS verifier sa presence : un fichier
 #  absent ou corrompu fait echouer toute la detection.
 #
+#  Le numero de version du libelle est volontairement fige a
+#  99.99.99. Telmi-Sync le compare a la derniere version publiee
+#  de TelmiOS ; s'il est plus ancien, il telecharge la mise a
+#  jour et la decompresse A LA RACINE de la carte, ce qui ecrase
+#  le .tmp_update de Bifrost : le menu de demarrage disparait et
+#  la console ne lance plus que TelmiOS. Avec 99.99.99, aucune
+#  version publiee n'est jamais "plus recente" et Telmi-Sync
+#  n'installe rien. Ce numero ne sert a rien d'autre dans
+#  Telmi-Sync que cette comparaison et l'affichage.
+#  TelmiOS se met donc a jour en relancant l'installateur Bifrost.
+#
 #  Ces fichiers vivent a la racine de la carte, la ou n'importe
 #  quel outil PC peut les modifier. On les revalide donc a
 #  chaque demarrage de la console, et on les repare au besoin.
@@ -176,20 +187,7 @@ AUTORUN_FILE="$SD_ROOT/autorun.inf"
 PARAMS_FILE="$SD_ROOT/Saves/.parameters"
 
 telmi_sync_validate() {
-    # ---- Version de TelmiOS reellement installee ----
-    _tsv=""
-    _tsv_file="$TELMIOS_DIR/.tmp_update/telmiVersion/version.txt"
-    if [ -f "$_tsv_file" ]; then
-        _tsv=$(tr -d ' \t\r\n' < "$_tsv_file" 2>/dev/null)
-        _tsv=${_tsv#v}
-    fi
-    # Telmi-Sync exige trois nombres separes par des points.
-    case "$_tsv" in
-        *[!0-9.]*)      _tsv="" ;;
-        *.*.*.*)        _tsv="" ;;
-        *.*.*)                  ;;
-        *)              _tsv="" ;;
-    esac
+    _tsv="99.99.99"
 
     # ---- 1. Dossiers de donnees attendus a la racine ----
     for _d in Stories Saves Music; do
@@ -198,24 +196,20 @@ telmi_sync_validate() {
         fi
     done
 
-    # ---- 2. autorun.inf : libelle aligne sur la version installee ----
-    if [ -n "$_tsv" ]; then
-        _want="label = TelmiOS-v$_tsv"
-        _have=$(grep -i '^[[:space:]]*label[[:space:]]*=' "$AUTORUN_FILE" 2>/dev/null \
-                | head -1 | tr -d '\r')
-        _have=$(echo $_have)
-        if [ "$_have" = "$_want" ]; then
-            log "TelmiSync: autorun.inf OK (TelmiOS-v$_tsv)"
-        else
-            if printf '[autorun]\r\nicon  = .tmp_update/res/sdcard.ico\r\nlabel = TelmiOS-v%s\r\n' \
-                      "$_tsv" > "$AUTORUN_FILE" 2>/dev/null; then
-                log "TelmiSync: autorun.inf repare ('$_have' -> '$_want')"
-            else
-                log "TelmiSync: ecriture de autorun.inf impossible (carte protegee ?)"
-            fi
-        fi
+    # ---- 2. autorun.inf : libelle fige (voir en-tete) ----
+    _want="label = TelmiOS-v$_tsv"
+    _have=$(grep -i '^[[:space:]]*label[[:space:]]*=' "$AUTORUN_FILE" 2>/dev/null \
+            | head -1 | tr -d '\r')
+    _have=$(echo $_have)
+    if [ "$_have" = "$_want" ]; then
+        log "TelmiSync: autorun.inf OK (TelmiOS-v$_tsv)"
     else
-        log "TelmiSync: version TelmiOS indeterminee, autorun.inf inchange"
+        if printf '[autorun]\r\nicon  = .tmp_update/res/sdcard.ico\r\nlabel = TelmiOS-v%s\r\n' \
+                  "$_tsv" > "$AUTORUN_FILE" 2>/dev/null; then
+            log "TelmiSync: autorun.inf repare ('$_have' -> '$_want')"
+        else
+            log "TelmiSync: ecriture de autorun.inf impossible (carte protegee ?)"
+        fi
     fi
 
     # ---- 3. Saves/.parameters : present et JSON plausible ----

@@ -550,48 +550,18 @@ class InstallerForm : Form
             }
 
             // Telmi-Sync identifie la carte par le label "TelmiOS-vX.Y.Z" de
-            // autorun.inf. Un label perime lui ferait proposer une mise a jour
-            // de TelmiOS, laquelle ecraserait .tmp_update a la racine, donc le
-            // bootloader Bifrost lui-meme.
-            string telmiVer = null;
-            string verFile = Path.Combine(sdTelmi, ".tmp_update", "telmiVersion", "version.txt");
-            if (File.Exists(verFile))
-            {
-                try
-                {
-                    Match mv = Regex.Match(File.ReadAllText(verFile).Trim(),
-                                           @"^v?(\d+\.\d+\.\d+)$");
-                    if (mv.Success) telmiVer = mv.Groups[1].Value;
-                }
-                catch { }
-            }
-            if (telmiVer == null)
-            {
-                string srcAutorun = Path.Combine(telmi, "autorun.inf");
-                if (File.Exists(srcAutorun))
-                {
-                    try
-                    {
-                        Match mv = Regex.Match(File.ReadAllText(srcAutorun),
-                                               @"label\s*=\s*TelmiOS-v(\d+\.\d+\.\d+)");
-                        if (mv.Success) telmiVer = mv.Groups[1].Value;
-                    }
-                    catch { }
-                }
-            }
-            if (telmiVer != null)
-            {
-                File.WriteAllText(Path.Combine(sd, "autorun.inf"),
-                    "[autorun]\r\nicon  = .tmp_update/res/sdcard.ico\r\nlabel = TelmiOS-v"
-                    + telmiVer + "\r\n");
-                Log("autorun.inf : label = TelmiOS-v" + telmiVer);
-                AppendLog("  [Telmi-Sync] Carte annoncee comme TelmiOS-v" + telmiVer, Color.Gray);
-            }
-            else
-            {
-                Log("Version TelmiOS indeterminee - autorun.inf laisse tel quel");
-                AppendLog("  [WARN] Version TelmiOS indeterminee dans autorun.inf", Color.Yellow);
-            }
+            // autorun.inf et compare ce numero a la derniere version publiee de
+            // TelmiOS. S'il est plus ancien, il decompresse la mise a jour a la
+            // racine de la carte, ce qui ecrase .tmp_update, donc le bootloader
+            // Bifrost lui-meme. Le numero est fige a 99.99.99 pour que
+            // Telmi-Sync n'installe jamais rien ; runtime.sh applique la meme
+            // valeur a chaque demarrage de la console.
+            const string telmiVer = "99.99.99";
+            File.WriteAllText(Path.Combine(sd, "autorun.inf"),
+                "[autorun]\r\nicon  = .tmp_update/res/sdcard.ico\r\nlabel = TelmiOS-v"
+                + telmiVer + "\r\n");
+            Log("autorun.inf : label = TelmiOS-v" + telmiVer);
+            AppendLog("  [Telmi-Sync] Carte annoncee comme TelmiOS-v" + telmiVer, Color.Gray);
 
             // ==== STEP 7: OnionOS ====
             SetStep(string.Format("{0} {1}\\onion\\", _L["step7_pre"], sd), 7);

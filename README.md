@@ -1,7 +1,7 @@
 # Miyoo-Bifrost
 
 [![OnionOS](https://img.shields.io/badge/OnionOS-v4.3.1--1%20%7C%20v4.4.0--beta-4CAF50?style=for-the-badge&logo=github&logoColor=white)](https://github.com/OnionUI/Onion)
-[![TelmiOS](https://img.shields.io/badge/TelmiOS-v1.10.3-FF8C00?style=for-the-badge&logo=github&logoColor=white)](https://github.com/DantSu/Telmi-story-teller)
+[![TelmiOS](https://img.shields.io/badge/TelmiOS-v1.10.4-FF8C00?style=for-the-badge&logo=github&logoColor=white)](https://github.com/DantSu/Telmi-story-teller)
 [![Rufus](https://img.shields.io/badge/Format%20SD-Rufus-blue?style=for-the-badge&logo=usb&logoColor=white)](https://rufus.ie)
 [![Vibe coded with Claude Code](https://img.shields.io/badge/Vibe%20coded%20with-Claude%20Code-blueviolet?style=for-the-badge&logo=anthropic&logoColor=white)](https://claude.ai/code)
 
@@ -13,8 +13,7 @@
 
 Un bootloader léger qui affiche un menu graphique au démarrage pour choisir entre **OnionOS** (retrogaming) et **TelmiOS** (histoires interactives pour enfants), avec protection parentale par code secret optionnelle.
 
-> 🧪 **BETA — Mode Furtif + Code Konami** (branche `beta`)
-> Nouveau : boot direct sur TelmiOS (ou OnionOS) avec le menu Bifrost caché. Le menu reste accessible via un **Code Konami** configurable au démarrage. Idéal pour offrir une console aux enfants sans qu'ils voient le menu de selection. Voir la section [Mode Furtif](#mode-furtif-bêta) ci-dessous.
+> 🆕 **Version 1.5.0** — Mode Furtif + Code Konami, jauge de batterie, écrans d'erreur explicites, et une carte que Telmi-Sync ne peut plus écraser. Voir [Nouveautés de la version 1.5.0](#nouveautés-de-la-version-150).
 
 > 🤖 Ce projet a été entièrement **vibe codé avec [Claude Code](https://claude.ai/code)** — l'IA de développement d'Anthropic.
 
@@ -60,7 +59,9 @@ Un bootloader léger qui affiche un menu graphique au démarrage pour choisir en
 - **Compatibilité** Miyoo Mini (283) et Miyoo Mini Plus (354) — image pivotée 180° automatiquement pour MM
 - **Protection parentale** : code secret par séquence de boutons, configurable par OS (optionnel)
 - **Menu de configuration sur la console** : accessible via **X**, protégé par code admin — modifie verrouillage, codes et vibrations directement depuis la Miyoo
+- **Mode Furtif + Code Konami** : démarrage direct sur un OS avec le menu caché, révélé par une séquence secrète de boutons
 - **Compatible Telmi-Sync** : les histoires, sauvegardes et musiques sont accessibles depuis l'application Telmi-Sync sans reformater la carte
+- **Protégé contre la mise à jour automatique de Telmi-Sync** : la carte s'annonce en version `99.99.99`, Telmi-Sync n'écrase donc plus le menu de démarrage
 - **Écrans d'erreur explicites** : un système introuvable affiche le dossier attendu et la marche à suivre, au lieu d'un écran noir suivi d'un redémarrage
 - **Configuration** par fichier texte simple sur la SD — aucun accès PC requis après installation
 - **Installateur Windows EXE** avec interface graphique (log coloré, barre de progression) — formate la SD en FAT32, copie tout, génère les images automatiquement
@@ -74,12 +75,36 @@ Un bootloader léger qui affiche un menu graphique au démarrage pour choisir en
 | OS | Versions prises en charge |
 |---|---|
 | OnionOS | v4.3.1-1 (stable) · v4.4.0-beta |
-| TelmiOS | v1.10.3 · v1.10.x · v1.9.x |
+| TelmiOS | v1.10.4 · v1.10.x · v1.9.x |
 
 > Bifrost ne dépend d'aucun fichier propre à une version : il place chaque OS
-> dans son dossier et n'utilise que des chemins stables (`.tmp_update/`,
-> `miyoo/`, `miyoo354/`). Les arborescences d'OnionOS v4.4.0-beta et de
-> TelmiOS v1.10.3 sont identiques à celles des versions précédentes.
+> dans son dossier et n'utilise que des chemins stables (`.tmp_update/`, et
+> `miyoo/` / `miyoo354/` quand l'OS les fournit). TelmiOS 1.10.x ne livre plus
+> de dossier `miyoo/` : Bifrost le détecte et démarre sans avertissement.
+
+---
+
+## Nouveautés de la version 1.5.0
+
+Première version stable qui regroupe tout ce qui était en bêta.
+
+| Ajout | Ce que ça change |
+|---|---|
+| **Mode Furtif + Code Konami** | La console démarre directement sur TelmiOS (ou OnionOS) sans afficher le menu. Une séquence secrète de boutons le fait réapparaître. Voir [Mode Furtif](#mode-furtif). |
+| **Libellé Telmi-Sync figé à `99.99.99`** | Telmi-Sync installait tout seul la dernière version de TelmiOS à la racine de la carte, ce qui écrasait le menu Bifrost : la console ne lançait plus que TelmiOS. La carte s'annonce désormais dans une version que rien ne dépasse, donc Telmi-Sync n'installe plus rien. Voir [Compatibilité Telmi-Sync](#compatibilité-telmi-sync). |
+| **Plus de faux écran « Données inaccessibles »** | TelmiOS 1.10.x ne contient plus de dossier `miyoo/`. Bifrost affichait un avertissement à chaque lancement de TelmiOS alors que tout fonctionnait. |
+| **Jauge de batterie** | Niveau de batterie et indicateur de charge dans le menu. |
+| **Écrans d'erreur explicites** | Un système introuvable affiche le dossier attendu et la marche à suivre, au lieu d'un écran noir suivi d'un redémarrage. |
+| **Validation Telmi-Sync à chaque démarrage** | `autorun.inf`, `Saves/.parameters` et les dossiers `Stories/`, `Saves/`, `Music/` sont vérifiés et réparés à chaque allumage. |
+| **Emblèmes d'OS et texte agrandi** | Menu plus lisible sur le petit écran de la console. |
+| **Suite de tests** | La logique du bootloader est testée sur PC (`sh tests/run_tests.sh`). |
+
+**Mettre à jour depuis une version précédente, sans reformater :** copie
+`DualBoot\.tmp_update\runtime.sh` et le contenu de `DualBoot\.tmp_update\res\`
+dans `SD:\.tmp_update\` en remplaçant les anciens fichiers. Ne touche à rien
+d'autre : `bin\`, `lib\`, `onion\`, `telmios\`, tes jeux, histoires et
+sauvegardes restent en place, et ton `config\dualboot.cfg` reste compatible.
+Tu peux aussi relancer l'installateur : il ne formate pas une carte déjà en FAT32.
 
 ---
 
@@ -295,7 +320,7 @@ Il est possible de configurer Bifrost **directement depuis la Miyoo**, sans acc�
 
 Au démarrage, si l'OS protégé est sélectionné, un écran cadenas apparaît. Entre la séquence définie dans `PASSWORD_SEQUENCE`. Appuie sur **B** pour annuler et revenir au menu.
 
-### Mode Furtif (BÊTA)
+### Mode Furtif
 
 Cache le menu Bifrost au démarrage et boote directement sur l'OS configuré. Le menu reste accessible via un **Code Konami** pendant un court délai après l'allumage.
 
@@ -328,38 +353,49 @@ La carte SD est pleinement reconnue par **Telmi-Sync** (l'application Windows de
 
 **Comment Telmi-Sync reconnaît la carte.** Il lit `autorun.inf` à la racine et y
 cherche un libellé de la forme `TelmiOS-vX.Y.Z`, puis ouvre `Saves/.parameters`
-et le lit comme du JSON. L'installateur Bifrost écrit ces deux fichiers :
-le libellé reprend la version de TelmiOS réellement installée (lue dans
-`telmios/.tmp_update/telmiVersion/version.txt`) et les paramètres sont copiés
-depuis l'archive TelmiOS. Si `Saves/.parameters` manque ou n'est pas du JSON
-valide, Telmi-Sync échoue à détecter la carte.
+et le lit comme du JSON. L'installateur Bifrost écrit ces deux fichiers. Si
+`Saves/.parameters` manque ou n'est pas du JSON valide, Telmi-Sync échoue à
+détecter la carte.
 
-**Vérification à chaque démarrage.** Ces deux fichiers vivent à la racine de la
+**Pourquoi la carte s'annonce en version `99.99.99`.** Telmi-Sync compare le
+numéro du libellé à la dernière version publiée de TelmiOS. S'il est plus
+ancien, il télécharge la mise à jour et la décompresse **à la racine de la
+carte**, ce qui remplace `.tmp_update/`, c'est-à-dire le menu de démarrage
+Bifrost lui-même : la console redémarre alors toujours sur TelmiOS, sans plus
+proposer OnionOS. Bifrost écrit donc toujours `label = TelmiOS-v99.99.99`,
+quelle que soit la version réellement installée. Aucune version publiée n'est
+plus récente, donc Telmi-Sync n'installe rien. Ce numéro ne sert qu'à cette
+comparaison et à l'affichage : Telmi-Sync indiquera « TelmiOS v99.99.99 », c'est
+normal. L'astuce vient de DantSu, l'auteur de TelmiOS et de Telmi-Sync.
+
+**Vérification à chaque démarrage.** Ces fichiers vivent à la racine de la
 carte, là où n'importe quel outil PC peut les modifier ou les effacer. Bifrost
 les revalide donc à chaque allumage de la console, avant d'afficher le menu :
 
 | Contrôle | Réparation automatique |
 |---|---|
-| `autorun.inf` absent ou libellé périmé | Réécrit avec la version lue dans `telmios/.tmp_update/telmiVersion/version.txt` |
+| `autorun.inf` absent, ou libellé différent de `TelmiOS-v99.99.99` (ancienne installation, fichier écrasé par OnionOS) | Réécrit avec `TelmiOS-v99.99.99` |
 | `Saves/.parameters` absent ou non-JSON | Recopié depuis `telmios/Saves/.parameters` |
 | `Stories/`, `Saves/` ou `Music/` effacés | Recréés |
 
 Rien n'est écrit si tout est déjà conforme. Le résultat de chaque contrôle est
-tracé dans `SD:\.tmp_update\logs\dualboot.log`. Conséquence pratique : après
-une mise à jour de TelmiOS, le libellé suit tout seul au démarrage suivant, et
-Telmi-Sync ne propose plus de mise à jour destructrice.
+tracé dans `SD:\.tmp_update\logs\dualboot.log`.
 
 > Pour mettre à jour les histoires : branche la SD au PC, ouvre Telmi-Sync — la carte est automatiquement reconnue.
 
-> ⚠️ **N'utilise pas le bouton « mettre à jour TelmiOS » de Telmi-Sync sur une
-> carte Bifrost.** Cette fonction décompresse l'archive de mise à jour
-> directement à la racine de la SD, ce qui remplace `.tmp_update/runtime.sh`,
-> c'est-à-dire le menu de démarrage Bifrost lui-même. La console redémarrerait
-> alors directement sur TelmiOS, sans plus proposer OnionOS.
-> Pour passer à une nouvelle version de TelmiOS, relance l'installateur Bifrost
-> avec la nouvelle archive : la configuration et les histoires sont conservées.
-> Tant que le libellé de `autorun.inf` correspond à la dernière version publiée,
-> Telmi-Sync ne propose aucune mise à jour.
+> ⚠️ **Après une mise à jour de Bifrost, allume la console une fois avant
+> d'ouvrir Telmi-Sync.** C'est au démarrage que le libellé est corrigé : une
+> carte installée avec une ancienne version porte encore la vraie version de
+> TelmiOS tant que la console n'a pas démarré une fois.
+
+> **Mettre à jour TelmiOS.** Telmi-Sync ne le fera plus : relance l'installateur
+> Bifrost avec la nouvelle archive TelmiOS. La configuration et les histoires
+> sont conservées.
+
+> **Le menu a disparu et la console démarre toujours sur TelmiOS ?** Telmi-Sync
+> a écrasé le bootloader avant cette protection. Recopie
+> `DualBoot\.tmp_update\runtime.sh` et `DualBoot\.tmp_update\res\` dans
+> `SD:\.tmp_update\`, ou relance l'installateur Bifrost.
 
 ---
 
@@ -371,6 +407,9 @@ Telmi-Sync ne propose plus de mise à jour destructrice.
 | Menu ne s'affiche pas (timeout → boot auto) | Relance `generate_bootmenu.py` avec la SD insérée, ou vérifie `SD:\.tmp_update\runtime.sh` |
 | OnionOS ne démarre pas au premier boot | Attends ~2 minutes — l'installateur interne d'Onion s'exécute automatiquement |
 | TelmiOS ne démarre pas | Vérifie que `SD:\telmios\.tmp_update\runtime.sh` existe |
+| Plus de menu, la console démarre toujours sur TelmiOS | Telmi-Sync a écrasé le bootloader en mettant TelmiOS à jour. Recopie `DualBoot\.tmp_update\runtime.sh` et `res\` dans `SD:\.tmp_update\` (voir [Compatibilité Telmi-Sync](#compatibilité-telmi-sync)) |
+| Écran « Données inaccessibles » au lancement de TelmiOS | Version antérieure à la 1.5.0 : mets à jour `SD:\.tmp_update\runtime.sh` |
+| Telmi-Sync affiche « TelmiOS v99.99.99 » | C'est voulu : ce numéro empêche Telmi-Sync d'écraser le menu Bifrost |
 | La console redémarre en boucle | Les librairies dans `SD:\.tmp_update\lib\` doivent venir de TelmiOS (pas d'Onion) |
 | Installateur bloqué par Windows | Clic droit sur `.ps1` → Propriétés → coche **Débloquer** → OK |
 | diskpart échoue | Lance PowerShell en administrateur manuellement, puis réexécute le script |
@@ -426,7 +465,7 @@ bootloader est donc couverte immédiatement, sans duplication à maintenir.
 | File d'attente des touches | Aucun appui perdu sur une salve rapide, purge, expiration |
 | Chargement de la configuration | Valeurs valides appliquées, valeurs hostiles rejetées, boutons réservés refusés, annulation |
 | Séquences et Code Konami | Conversions, variantes matérielles du bouton A, fenêtre glissante |
-| Validation Telmi-Sync | 8 scénarios de carte corrompue, reconnaissance vérifiée à chaque fois |
+| Validation Telmi-Sync | Cartes corrompues ou libellé écrasé : reconnaissance vérifiée à chaque fois, et aucune mise à jour de TelmiOS déclenchée quelle que soit la version publiée |
 | Jauge de batterie | Lecture du JSON du firmware, paliers d'affichage, valeurs aberrantes |
 | Images du menu | 210 fichiers RAW présents, à la bonne taille, non vides |
 
@@ -468,8 +507,7 @@ Projet communautaire non officiel. OnionOS et TelmiOS sont des projets indépend
 
 A lightweight bootloader that displays a graphical menu at startup to choose between **OnionOS** (retrogaming) and **TelmiOS** (interactive stories for children), with optional parental lock via button sequence.
 
-> 🧪 **BETA — Stealth Boot + Konami Code** (`beta` branch)
-> New: boot directly into TelmiOS (or OnionOS) with the Bifrost menu hidden. The menu remains accessible via a configurable **Konami Code** at startup. Perfect for handing the console to a child without exposing the OS selector. See [Stealth Mode](#stealth-mode-beta) below.
+> 🆕 **Version 1.5.0** — Stealth Boot + Konami Code, battery gauge, explicit error screens, and a card Telmi-Sync can no longer overwrite. See [What's new in 1.5.0](#whats-new-in-150).
 
 > 🤖 This project was entirely **vibe coded with [Claude Code](https://claude.ai/code)** — Anthropic's AI development tool.
 
@@ -487,7 +525,9 @@ A lightweight bootloader that displays a graphical menu at startup to choose bet
 - **Compatibility** with Miyoo Mini (283) and Miyoo Mini Plus (354) — image auto-rotated 180° for MM
 - **Parental lock**: secret button sequence, configurable per OS (optional)
 - **On-device config menu**: accessible via **X**, protected by admin code — change lock settings, codes and vibration directly from the Miyoo
+- **Stealth Boot + Konami Code**: boot straight into one OS with the menu hidden, revealed by a secret button sequence
 - **Telmi-Sync compatible**: stories, saves and music are accessible from the Telmi-Sync app without reformatting the card
+- **Protected against Telmi-Sync's automatic update**: the card reports version `99.99.99`, so Telmi-Sync no longer overwrites the boot menu
 - **Explicit error screens**: a missing system shows the expected folder and what to do, instead of a black screen followed by a reboot
 - **Configuration** via simple text file on SD — no PC needed after installation
 - **Windows EXE installer** with graphical interface (colored log, progress bar) — formats SD to FAT32, copies everything, generates images automatically
@@ -501,12 +541,36 @@ A lightweight bootloader that displays a graphical menu at startup to choose bet
 | OS | Supported versions |
 |---|---|
 | OnionOS | v4.3.1-1 (stable) · v4.4.0-beta |
-| TelmiOS | v1.10.3 · v1.10.x · v1.9.x |
+| TelmiOS | v1.10.4 · v1.10.x · v1.9.x |
 
 > Bifrost depends on no version-specific file: it keeps each OS in its own
-> folder and only uses stable paths (`.tmp_update/`, `miyoo/`, `miyoo354/`).
-> The directory layouts of OnionOS v4.4.0-beta and TelmiOS v1.10.3 are
-> identical to the previous releases.
+> folder and only uses stable paths (`.tmp_update/`, plus `miyoo/` /
+> `miyoo354/` when the OS ships them). TelmiOS 1.10.x no longer ships a
+> `miyoo/` folder: Bifrost detects that and boots without a warning.
+
+---
+
+## What's new in 1.5.0
+
+First stable release gathering everything that was in beta.
+
+| Addition | What it changes |
+|---|---|
+| **Stealth Boot + Konami Code** | The console boots straight into TelmiOS (or OnionOS) without showing the menu. A secret button sequence brings it back. See [Stealth Mode](#stealth-mode). |
+| **Telmi-Sync label pinned to `99.99.99`** | Telmi-Sync installed the latest TelmiOS release at the card root on its own, which overwrote the Bifrost menu: the console then only booted TelmiOS. The card now reports a version nothing can exceed, so Telmi-Sync installs nothing. See [Telmi-Sync Compatibility](#telmi-sync-compatibility). |
+| **No more false "Data unavailable" screen** | TelmiOS 1.10.x no longer contains a `miyoo/` folder. Bifrost showed a warning every time TelmiOS started although everything worked. |
+| **Battery gauge** | Battery level and charging indicator in the menu. |
+| **Explicit error screens** | A missing system shows the expected folder and what to do, instead of a black screen followed by a reboot. |
+| **Telmi-Sync validation on every boot** | `autorun.inf`, `Saves/.parameters` and the `Stories/`, `Saves/`, `Music/` folders are checked and repaired each time the console powers on. |
+| **OS emblems and larger text** | A more readable menu on the console's small screen. |
+| **Test suite** | The bootloader logic is tested on a PC (`sh tests/run_tests.sh`). |
+
+**Updating from a previous version, without reformatting:** copy
+`DualBoot\.tmp_update\runtime.sh` and the contents of
+`DualBoot\.tmp_update\res\` into `SD:\.tmp_update\`, replacing the old files.
+Touch nothing else: `bin\`, `lib\`, `onion\`, `telmios\`, your games, stories
+and saves stay in place, and your `config\dualboot.cfg` remains compatible. You
+can also re-run the installer: it does not format a card that is already FAT32.
 
 ---
 
@@ -722,7 +786,7 @@ You can configure Bifrost **directly from the Miyoo**, without a PC:
 
 At startup, if the locked OS is selected, a lock screen appears. Enter the sequence defined in `PASSWORD_SEQUENCE`. Press **B** to cancel and return to the menu.
 
-### Stealth Mode (BETA)
+### Stealth Mode
 
 Hides the Bifrost menu at startup and boots directly into the configured OS. The menu remains accessible via a **Konami Code** during a short listening window after power-on.
 
@@ -755,36 +819,49 @@ The SD card is fully recognized by **Telmi-Sync** (the Windows story management 
 
 **How Telmi-Sync recognizes the card.** It reads `autorun.inf` at the root and
 looks for a label of the form `TelmiOS-vX.Y.Z`, then opens `Saves/.parameters`
-and parses it as JSON. The Bifrost installer writes both files: the label
-carries the TelmiOS version actually installed (read from
-`telmios/.tmp_update/telmiVersion/version.txt`) and the parameters are copied
-from the TelmiOS archive. If `Saves/.parameters` is missing or is not valid
-JSON, Telmi-Sync fails to detect the card.
+and parses it as JSON. The Bifrost installer writes both files. If
+`Saves/.parameters` is missing or is not valid JSON, Telmi-Sync fails to detect
+the card.
 
-**Checked on every boot.** Both files live at the card root, where any PC tool
+**Why the card reports version `99.99.99`.** Telmi-Sync compares the label's
+number with the latest published TelmiOS release. If it is older, it downloads
+the update and extracts it **to the card root**, which replaces `.tmp_update/`
+— the Bifrost boot menu itself: the console then always boots TelmiOS and no
+longer offers OnionOS. Bifrost therefore always writes
+`label = TelmiOS-v99.99.99`, whatever version is actually installed. No
+published release is newer, so Telmi-Sync installs nothing. The number is only
+used for that comparison and for display: Telmi-Sync will show
+"TelmiOS v99.99.99", which is expected. The trick comes from DantSu, the author
+of TelmiOS and Telmi-Sync.
+
+**Checked on every boot.** These files live at the card root, where any PC tool
 can alter or delete them. Bifrost therefore revalidates them each time the
 console powers on, before drawing the menu:
 
 | Check | Automatic repair |
 |---|---|
-| `autorun.inf` missing or label out of date | Rewritten with the version read from `telmios/.tmp_update/telmiVersion/version.txt` |
+| `autorun.inf` missing, or label other than `TelmiOS-v99.99.99` (older install, file overwritten by OnionOS) | Rewritten with `TelmiOS-v99.99.99` |
 | `Saves/.parameters` missing or not JSON | Copied back from `telmios/Saves/.parameters` |
 | `Stories/`, `Saves/` or `Music/` deleted | Recreated |
 
 Nothing is written when everything already matches. Each check is traced in
-`SD:\.tmp_update\logs\dualboot.log`. In practice: after a TelmiOS upgrade the
-label follows on its own at the next boot, so Telmi-Sync no longer offers the
-destructive update.
+`SD:\.tmp_update\logs\dualboot.log`.
 
 > To update stories: plug the SD into your PC, open Telmi-Sync — the card is automatically recognized.
 
-> ⚠️ **Do not use Telmi-Sync's "update TelmiOS" button on a Bifrost card.**
-> That feature extracts the update archive straight to the SD root, which
-> replaces `.tmp_update/runtime.sh` — the Bifrost boot menu itself. The console
-> would then boot straight into TelmiOS and no longer offer OnionOS.
-> To move to a newer TelmiOS release, re-run the Bifrost installer with the new
-> archive: your settings and stories are preserved. As long as the `autorun.inf`
-> label matches the latest published release, Telmi-Sync offers no update.
+> ⚠️ **After updating Bifrost, power the console on once before opening
+> Telmi-Sync.** The label is corrected at boot: a card installed with an older
+> version still carries the real TelmiOS version until the console has booted
+> once.
+
+> **Updating TelmiOS.** Telmi-Sync will no longer do it: re-run the Bifrost
+> installer with the new TelmiOS archive. Your settings and stories are
+> preserved.
+
+> **Menu gone and the console always boots TelmiOS?** Telmi-Sync overwrote the
+> bootloader before this protection existed. Copy
+> `DualBoot\.tmp_update\runtime.sh` and `DualBoot\.tmp_update\res\` back into
+> `SD:\.tmp_update\`, or re-run the Bifrost installer.
 
 ---
 
@@ -796,6 +873,9 @@ destructive update.
 | Menu doesn't appear (timeout → auto boot) | Re-run `generate_bootmenu.py` with SD inserted, or check `SD:\.tmp_update\runtime.sh` |
 | OnionOS won't boot on first try | Wait ~2 minutes — Onion's internal installer runs automatically on first boot |
 | TelmiOS won't boot | Check that `SD:\telmios\.tmp_update\runtime.sh` exists |
+| No menu any more, the console always boots TelmiOS | Telmi-Sync overwrote the bootloader while updating TelmiOS. Copy `DualBoot\.tmp_update\runtime.sh` and `res\` back into `SD:\.tmp_update\` (see [Telmi-Sync Compatibility](#telmi-sync-compatibility)) |
+| "Data unavailable" screen when starting TelmiOS | Version older than 1.5.0: update `SD:\.tmp_update\runtime.sh` |
+| Telmi-Sync shows "TelmiOS v99.99.99" | Intended: that number keeps Telmi-Sync from overwriting the Bifrost menu |
 | Console reboots in a loop | Libraries in `SD:\.tmp_update\lib\` must come from TelmiOS (not from Onion) |
 | Installer blocked by Windows | Right-click `.ps1` → Properties → check **Unblock** → OK |
 | diskpart fails | Manually open PowerShell as Administrator, then re-run the script |
@@ -851,7 +931,7 @@ covered immediately, with no duplicate to maintain.
 | Key queue | No keypress lost in a fast burst, flushing, timeout |
 | Configuration loading | Valid values applied, hostile values rejected, reserved buttons refused, cancel |
 | Sequences and Konami Code | Conversions, hardware variants of the A button, sliding window |
-| Telmi-Sync validation | 8 corrupted-card scenarios, detection verified every time |
+| Telmi-Sync validation | Corrupted cards or overwritten label: detection verified every time, and no TelmiOS update triggered whatever release is published |
 | Battery gauge | Firmware JSON parsing, display steps, out-of-range values |
 | Menu images | 210 RAW files present, correctly sized, not blank |
 
